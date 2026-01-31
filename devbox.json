@@ -1,18 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.16.0/.schema/devbox.schema.json",
-  "packages": [
-    "bun@1.3.6",
-    "jujutsu@0.37.0",
-    "plantuml@latest"
-  ],
+  "packages": ["bun@1.3.6", "jujutsu@0.37.0", "plantuml@latest"],
   "shell": {
-    "init_hook": [
-      "echo 'Welcome to devbox!' > /dev/null"
-    ],
+    "init_hook": ["echo 'Welcome to devbox!' > /dev/null"],
     "scripts": {
-      "test": [
-        "echo \"Error: no test specified\" && exit 1"
-      ]
+      "test": ["echo \"Error: no test specified\" && exit 1"]
     }
   }
 }

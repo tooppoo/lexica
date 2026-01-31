@@ -1,6 +1,7 @@
 # モジュール設計（UI / Application / Core）
 
 ## UI
+
 - CLI
   - コマンド: `lexica dictionary switch`, `lexica dictionary clear`, `lexica add`, `lexica remove`, `lexica ls`
   - 入力: term / meaning / dictionary（source:target）
@@ -8,6 +9,7 @@
 - 破壊的操作は辞書指定必須（入力不正）
 
 ## Application
+
 - Operation
   - UpsertEntry / ListEntries / GenerateExamples / ReplaceEntry / DeleteEntry
 - 辞書切り替え / 辞書全削除
@@ -19,6 +21,7 @@
   - 例文生成（初期: OpenAI のみ）
 
 ## Core
+
 - 語彙データ
 - Entry
 - Dictionary
@@ -29,5 +32,6 @@
   - 競合はエラーとしない
 
 ## 依存方向
+
 - UI -> Application -> Core のみ許可
 - UI から Core への直接依存は禁止

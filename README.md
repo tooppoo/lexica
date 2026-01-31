@@ -43,5 +43,6 @@ lexica dictionary clear -d en:ja
 ```
 
 補足:
+
 - すべての応答に現在選択中の辞書が表示される。
 - 破壊的操作（削除・全削除）は `-d` / `--dictionary` 指定が必須。
