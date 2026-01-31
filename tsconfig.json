@@ -18,12 +18,12 @@
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
+    "noImplicitAny": true,
     "noImplicitOverride": true,
-
-    // Some stricter flags (disabled by default)
+    "noPropertyAccessFromIndexSignature": false,
+    "noUncheckedIndexedAccess": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "useUnknownInCatchVariables": true
   }
 }
