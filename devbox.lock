@@ -100,6 +100,54 @@
           "store_path": "/nix/store/9ky3la677ra6y4jn0q00dc3jjqa1qhla-jujutsu-0.37.0"
         }
       }
+    },
+    "plantuml@latest": {
+      "last_modified": "2026-01-24T15:20:28Z",
+      "resolved": "github:NixOS/nixpkgs/ab9fbbcf4858bd6d40ba2bbec37ceb4ab6e1f562#plantuml",
+      "source": "devbox-search",
+      "version": "1.2026.1",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/jlfkz65aasdjhqampvjyxjzb5c90bi1r-plantuml-1.2026.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/jlfkz65aasdjhqampvjyxjzb5c90bi1r-plantuml-1.2026.1"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/1ysf492bz5b9hjphh4k6cxayb2d2vr8y-plantuml-1.2026.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/1ysf492bz5b9hjphh4k6cxayb2d2vr8y-plantuml-1.2026.1"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/y41srjy09l3jz3g5xjmn9jqd5jgzivwa-plantuml-1.2026.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/y41srjy09l3jz3g5xjmn9jqd5jgzivwa-plantuml-1.2026.1"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/8m3v6i5k7v5gidslarlvxjz3jn75rify-plantuml-1.2026.1",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/8m3v6i5k7v5gidslarlvxjz3jn75rify-plantuml-1.2026.1"
+        }
+      }
     }
   }
 }

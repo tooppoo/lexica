@@ -1,0 +1,41 @@
+@startuml
+skinparam packageStyle rectangle
+
+package "UI" {
+  [CLI]
+  [コマンド]
+}
+
+package "Application" {
+  [Operation]
+  [辞書切り替え]
+  [辞書全削除]
+  [Response]
+  [Storage]
+  [AI連携]
+}
+
+package "Core" {
+  [語彙データ]
+  [Entry]
+  [Dictionary]
+  [DictionaryKey]
+  [制約]
+}
+
+[CLI] --> [コマンド]
+[コマンド] --> [Operation]
+[コマンド] --> [辞書切り替え]
+[コマンド] --> [辞書全削除]
+[Operation] --> [Entry]
+[Operation] --> [Dictionary]
+[Operation] --> [語彙データ]
+[Operation] --> [制約]
+[Operation] --> [Storage]
+[Operation] --> [AI連携]
+[辞書切り替え] --> [Dictionary]
+[辞書切り替え] --> [語彙データ]
+[辞書全削除] --> [語彙データ]
+[Response] --> [Dictionary]
+
+@enduml

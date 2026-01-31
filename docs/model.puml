@@ -1,0 +1,41 @@
+@startuml
+hide methods
+skinparam classAttributeIconSize 0
+
+' docs/terms.md に定義された語彙のみを使用すること
+
+class "語彙データ" {
+  entriesByDictionary: DictionaryKey -> Entry[]
+}
+
+class DictionaryKey {
+  value: string
+}
+
+class Entry {
+  term: string
+  meanings: string[]
+  examples?: string[]
+}
+
+class Dictionary {
+  source: string
+  target: string
+}
+
+class "例文"
+
+"語彙データ" "1" o-- "*" DictionaryKey
+DictionaryKey "1" o-- "*" Entry
+DictionaryKey ..> Dictionary : derived
+Entry "0" -- "*" "例文"
+
+note right of Entry
+  一意性: (dictionaryKey, term)
+end note
+
+note bottom of "例文"
+  AIによって作成される例文
+end note
+
+@enduml
