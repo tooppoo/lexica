@@ -10,7 +10,7 @@ const unwrap = <T>(result: Result<T>): T => {
 };
 
 describe("memory storage", () => {
-  test("saves and loads vocabulary data", () => {
+  test("saves and loads vocabulary data", async () => {
     const storage = new MemoryVocabularyStorage();
     const data = {
       "en:ja": [
@@ -21,13 +21,13 @@ describe("memory storage", () => {
         },
       ],
     };
-    unwrap(storage.save("memory", data));
-    const loaded = unwrap(storage.load("memory"));
+    unwrap(await storage.save("memory", data));
+    const loaded = unwrap(await storage.load("memory"));
     expect(loaded).toEqual(data);
   });
 
-  test("returns empty data for missing key", () => {
+  test("returns empty data for missing key", async () => {
     const storage = new MemoryVocabularyStorage();
-    expect(unwrap(storage.load("missing"))).toEqual({});
+    expect(unwrap(await storage.load("missing"))).toEqual({});
   });
 });

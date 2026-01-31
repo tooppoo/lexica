@@ -5,12 +5,13 @@ import type { Entry, VocabularyData } from "../core/types";
 export type StorageError = { kind: "file-io"; reason: string };
 
 export type Result<T> = Byethrow.Result<T, StorageError>;
+export type ResultAsync<T> = Promise<Result<T>>;
 
 export interface VocabularyStorage {
   /** Loads vocabulary data from the given path. */
-  load(path: string): Result<VocabularyData>;
+  load(path: string): ResultAsync<VocabularyData>;
   /** Saves vocabulary data to the given path. */
-  save(path: string, data: VocabularyData): Result<void>;
+  save(path: string, data: VocabularyData): ResultAsync<void>;
 }
 
 const succeed = <T>(value: T): Result<T> => Byethrow.succeed(value);
@@ -38,13 +39,13 @@ const parseVocabularyData = (input: unknown): Result<VocabularyData> => {
  */
 export class FileVocabularyStorage implements VocabularyStorage {
   /** Loads vocabulary data from the given JSON file path. */
-  load(path: string): Result<VocabularyData> {
+  async load(path: string): Promise<Result<VocabularyData>> {
     try {
       const file = Bun.file(path);
-      if (!file.exists()) {
+      if (!(await file.exists())) {
         return succeed({});
       }
-      const content = JSON.parse(file.textSync());
+      const content = JSON.parse(await file.text());
       return parseVocabularyData(content);
     } catch (error) {
       return fail(error instanceof Error ? error.message : "Failed to read file");
@@ -52,10 +53,10 @@ export class FileVocabularyStorage implements VocabularyStorage {
   }
 
   /** Saves vocabulary data to the given JSON file path. */
-  save(path: string, data: VocabularyData): Result<void> {
+  async save(path: string, data: VocabularyData): Promise<Result<void>> {
     try {
       const json = JSON.stringify(data, null, 2);
-      Bun.write(path, json);
+      await Bun.write(path, json);
       return succeed(undefined);
     } catch (error) {
       return fail(error instanceof Error ? error.message : "Failed to write file");
@@ -70,12 +71,12 @@ export class MemoryVocabularyStorage implements VocabularyStorage {
   #store = new Map<string, VocabularyData>();
 
   /** Loads vocabulary data for the given key. */
-  load(path: string): Result<VocabularyData> {
+  async load(path: string): Promise<Result<VocabularyData>> {
     return succeed(this.#store.get(path) ?? {});
   }
 
   /** Saves vocabulary data for the given key. */
-  save(path: string, data: VocabularyData): Result<void> {
+  async save(path: string, data: VocabularyData): Promise<Result<void>> {
     this.#store.set(path, data);
     return succeed(undefined);
   }

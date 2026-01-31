@@ -13,7 +13,9 @@ import {
 } from "../application/application";
 import type { AppError } from "../application/application";
 
-const DEFAULT_VOCAB_PATH = "lexica.json";
+const DEFAULT_DICTIONARY_PATH = "lexica.dictionary.json";
+const DEFAULT_STATE_PATH = "lexica.state.json";
+const DEFAULT_CONFIG_PATH = "lexica.config.json";
 
 const printJson = (value: unknown): void => {
   console.log(JSON.stringify(value, null, 2));
@@ -23,6 +25,37 @@ const printError = (error: { kind: string; reason: string }): void => {
   printJson({ error });
 };
 
+const printHelp = (): void => {
+  console.log(
+    [
+      "lexica - CLI reference",
+      "",
+      "Usage:",
+      "  lexica [options] <command>",
+      "",
+      "Options:",
+      "  -p, --path <path>          Dictionary data path (alias of --dictionary)",
+      "  --dictionary <path>        Dictionary data path",
+      "  --state <path>             State file path",
+      "  --config <path>            Config file path",
+      "  -h, --help                 Show this help",
+      "",
+      "Commands:",
+      "  dictionary switch <source> <target>",
+      "  dictionary clear -d <source>:<target>",
+      "  add <term> <meaning>",
+      "  remove <term> [meaning] -d <source>:<target>",
+      "  ls [term]",
+      "  replace <term> <meaning...> -d <source>:<target>",
+      "",
+      "Defaults:",
+      `  Dictionary: ${DEFAULT_DICTIONARY_PATH}`,
+      `  State: ${DEFAULT_STATE_PATH}`,
+      `  Config: ${DEFAULT_CONFIG_PATH}`,
+    ].join("\n")
+  );
+};
+
 type CliError = AppError | { kind: "file-io"; reason: string };
 type CliResult<T> = Byethrow.Result<T, CliError>;
 
@@ -30,22 +63,42 @@ const fail = (kind: "file-io" | "invalid-input", reason: string): CliResult<neve
   Byethrow.fail({ kind, reason });
 
 const parseGlobalOptions = (args: string[]) => {
-  let path = DEFAULT_VOCAB_PATH;
+  let dictionaryPath = DEFAULT_DICTIONARY_PATH;
+  let statePath = DEFAULT_STATE_PATH;
+  let configPath = DEFAULT_CONFIG_PATH;
   const rest: string[] = [];
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
-    if (arg === "-p" || arg === "--path") {
+    if (arg === "-p" || arg === "--path" || arg === "--dictionary") {
       const next = args[i + 1];
       if (!next) {
-        return { error: "Missing path" } as const;
+        return { error: "Missing dictionary path" } as const;
       }
-      path = next;
+      dictionaryPath = next;
+      i += 1;
+      continue;
+    }
+    if (arg === "--state") {
+      const next = args[i + 1];
+      if (!next) {
+        return { error: "Missing state path" } as const;
+      }
+      statePath = next;
+      i += 1;
+      continue;
+    }
+    if (arg === "--config") {
+      const next = args[i + 1];
+      if (!next) {
+        return { error: "Missing config path" } as const;
+      }
+      configPath = next;
       i += 1;
       continue;
     }
     rest.push(arg);
   }
-  return { path, args: rest } as const;
+  return { dictionaryPath, statePath, configPath, args: rest } as const;
 };
 
 const extractOption = (args: string[], names: string[]) => {
@@ -63,12 +116,9 @@ const extractOption = (args: string[], names: string[]) => {
   return { value, args: rest } as const;
 };
 
-const statePathFor = (vocabPath: string): string =>
-  vocabPath.endsWith(".json") ? vocabPath.replace(/\.json$/, ".state.json") : `${vocabPath}.state.json`;
-
-const loadCurrentDictionary = (path: string): CliResult<DictionaryKey> => {
+const loadCurrentDictionary = async (path: string): Promise<CliResult<DictionaryKey>> => {
   const file = Bun.file(path);
-  if (!file.exists()) {
+  if (!(await file.exists())) {
     const dictionary = parseDictionary("en", "ja");
     if (Byethrow.isFailure(dictionary)) {
       return dictionary;
@@ -76,7 +126,7 @@ const loadCurrentDictionary = (path: string): CliResult<DictionaryKey> => {
     return Byethrow.succeed(toDictionaryKey(dictionary.value));
   }
   try {
-    const content = JSON.parse(file.textSync());
+    const content = JSON.parse(await file.text());
     const key = content?.dictionaryKey;
     if (typeof key !== "string") {
       return fail("invalid-input", "Invalid state format");
@@ -87,9 +137,12 @@ const loadCurrentDictionary = (path: string): CliResult<DictionaryKey> => {
   }
 };
 
-const saveCurrentDictionary = (path: string, dictionaryKey: DictionaryKey): CliResult<void> => {
+const saveCurrentDictionary = async (
+  path: string,
+  dictionaryKey: DictionaryKey
+): Promise<CliResult<void>> => {
   try {
-    Bun.write(path, JSON.stringify({ dictionaryKey }, null, 2));
+    await Bun.write(path, JSON.stringify({ dictionaryKey }, null, 2));
     return Byethrow.succeed(undefined);
   } catch (error) {
     return fail("file-io", error instanceof Error ? error.message : "Failed to write state");
@@ -105,7 +158,7 @@ const ensureSuccess = <T>(result: Byethrow.Result<T, { kind: string; reason: str
   return result.value;
 };
 
-const run = (): void => {
+const run = async (): Promise<void> => {
   const parsed = parseGlobalOptions(process.argv.slice(2));
   if ("error" in parsed) {
     printError({ kind: "invalid-input", reason: parsed.error });
@@ -113,19 +166,18 @@ const run = (): void => {
     return;
   }
 
-  const { path, args } = parsed;
+  const { dictionaryPath, statePath, configPath, args } = parsed;
+  void configPath;
   const storage = new FileVocabularyStorage();
-  const statePath = statePathFor(path);
 
-  const vocabulary = ensureSuccess(storage.load(path));
-  const currentDictionary = ensureSuccess(loadCurrentDictionary(statePath));
-  const state = createState(currentDictionary, vocabulary);
-
-  if (args.length === 0) {
-    printError({ kind: "invalid-input", reason: "Missing command" });
-    process.exitCode = 1;
+  if (args.length === 0 || args.includes("-h") || args.includes("--help")) {
+    printHelp();
     return;
   }
+
+  const vocabulary = ensureSuccess(await storage.load(dictionaryPath));
+  const currentDictionary = ensureSuccess(await loadCurrentDictionary(statePath));
+  const state = createState(currentDictionary, vocabulary);
 
   const [command, subcommand, ...rest] = args;
 
@@ -142,7 +194,7 @@ const run = (): void => {
       process.exitCode = 1;
       return;
     }
-    const saved = saveCurrentDictionary(statePath, result.value.dictionaryKey);
+    const saved = await saveCurrentDictionary(statePath, result.value.dictionaryKey);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -166,7 +218,7 @@ const run = (): void => {
       process.exitCode = 1;
       return;
     }
-    const saved = storage.save(path, result.value.state.vocabulary);
+    const saved = await storage.save(dictionaryPath, result.value.state.vocabulary);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -189,7 +241,7 @@ const run = (): void => {
       process.exitCode = 1;
       return;
     }
-    const saved = storage.save(path, result.value.state.vocabulary);
+    const saved = await storage.save(dictionaryPath, result.value.state.vocabulary);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -220,7 +272,7 @@ const run = (): void => {
       process.exitCode = 1;
       return;
     }
-    const saved = storage.save(path, result.value.state.vocabulary);
+    const saved = await storage.save(dictionaryPath, result.value.state.vocabulary);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -263,7 +315,7 @@ const run = (): void => {
       process.exitCode = 1;
       return;
     }
-    const saved = storage.save(path, result.value.state.vocabulary);
+    const saved = await storage.save(dictionaryPath, result.value.state.vocabulary);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -277,13 +329,10 @@ const run = (): void => {
   process.exitCode = 1;
 };
 
-try {
-  run();
-} catch (error) {
+run().catch((error) => {
   if (error instanceof Error && error.message === "exit") {
-    // handled
-  } else {
-    printError({ kind: "file-io", reason: "Unexpected error" });
-    process.exitCode = 1;
+    return;
   }
-}
+  printError({ kind: "file-io", reason: "Unexpected error" });
+  process.exitCode = 1;
+});
