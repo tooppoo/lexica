@@ -1,8 +1,10 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
 import { createEntry, parseMeanings, parseTerm } from "../core/entry";
+import { defaultScore } from "../core/score";
 import type { Result as CoreResult } from "../core/result";
-import { MemoryVocabularyStorage, type Result } from "./storage";
+import { parseDictionaryName } from "../core/dictionary";
+import { FileVocabularyStorage, MemoryVocabularyStorage, type Result } from "./storage";
 
 const unwrap = <T>(result: Result<T>): T => {
   if (!Byethrow.isSuccess(result)) {
@@ -34,5 +36,25 @@ describe("memory storage", () => {
   test("returns empty data for missing key", async () => {
     const storage = new MemoryVocabularyStorage();
     expect(unwrap(await storage.load("missing"))).toEqual({});
+  });
+
+  test("defaults missing score when loading from file", async () => {
+    const storage = new FileVocabularyStorage();
+    const path = `/tmp/lexica.storage.${Date.now()}.json`;
+    await Bun.write(
+      path,
+      JSON.stringify({
+        default: [
+          {
+            term: "object",
+            meanings: ["物"],
+          },
+        ],
+      }),
+    );
+    const loaded = unwrap(await storage.load(path));
+    const dictionaryName = unwrapCore(parseDictionaryName("default"));
+    const entry = loaded[dictionaryName]?.[0];
+    expect(entry?.score).toBe(defaultScore());
   });
 });

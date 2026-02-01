@@ -1,7 +1,8 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
 import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
-import { parseMeaning, parseTerm } from "../core/entry";
+import { createEntry, parseMeaning, parseTerm } from "../core/entry";
+import { scoreToNumber } from "../core/score";
 import type { Result as CoreResult } from "../core/result";
 import {
   addEntry,
@@ -11,7 +12,11 @@ import {
   listEntries,
   removeEntry,
   replaceEntry,
+  selectExampleTestEntry,
+  selectMeaningTestEntry,
   switchDictionary,
+  forgetEntry,
+  rememberEntry,
 } from "./application";
 import type { AppError, Result } from "./application";
 
@@ -79,10 +84,9 @@ describe("application vocabulary operations", () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, "object", "物"));
     const listed = unwrap(listEntries(added.state, "object"));
-    expect(listed.entries).toEqual({
-      term: unwrapCore(parseTerm("object")),
-      meanings: [unwrapCore(parseMeaning("物"))],
-    });
+    expect(listed.entries).toEqual(
+      createEntry(unwrapCore(parseTerm("object")), [unwrapCore(parseMeaning("物"))]),
+    );
   });
 
   test("removes entry", () => {
@@ -99,10 +103,9 @@ describe("application vocabulary operations", () => {
     const appended = unwrap(addEntry(added.state, "object", "対象"));
     const removed = unwrap(removeEntry(appended.state, "object", "物"));
     const listed = unwrap(listEntries(removed.state, "object"));
-    expect(listed.entries).toEqual({
-      term: unwrapCore(parseTerm("object")),
-      meanings: [unwrapCore(parseMeaning("対象"))],
-    });
+    expect(listed.entries).toEqual(
+      createEntry(unwrapCore(parseTerm("object")), [unwrapCore(parseMeaning("対象"))]),
+    );
   });
 
   test("removing last meaning deletes entry", () => {
@@ -140,5 +143,39 @@ describe("application example generation", () => {
       Byethrow.fail({ kind: "ai-failed", reason: "failure" }),
     );
     expectErrorKind(result, "ai-failed");
+  });
+});
+
+describe("application test operations", () => {
+  test("updates score when remembered", () => {
+    const state = createDefaultState();
+    const added = unwrap(addEntry(state, "object", "物"));
+    const updated = unwrap(rememberEntry(added.state, "object"));
+    expect(scoreToNumber(updated.entry.score)).toBe(1);
+  });
+
+  test("does not decrement score below zero", () => {
+    const state = createDefaultState();
+    const added = unwrap(addEntry(state, "object", "物"));
+    const updated = unwrap(forgetEntry(added.state, "object"));
+    expect(scoreToNumber(updated.entry.score)).toBe(0);
+  });
+
+  test("selects meanings entry without repeating terms", () => {
+    const state = createDefaultState();
+    const first = unwrap(addEntry(state, "object", "物")).state;
+    const second = unwrap(addEntry(first, "value", "値")).state;
+    const usedTerms = new Set([unwrapCore(parseTerm("object"))]);
+    const selection = unwrap(selectMeaningTestEntry(second, usedTerms, () => 0));
+    expect(selection?.entry.term).toBe(unwrapCore(parseTerm("value")));
+  });
+
+  test("selects examples without repeating examples", () => {
+    const state = createDefaultState();
+    const added = unwrap(addEntry(state, "object", "物")).state;
+    const updated = unwrap(replaceEntry(added, "object", ["物"], ["ex1", "ex2"])).state;
+    const usedExamples = new Set(["ex1"]);
+    const selection = unwrap(selectExampleTestEntry(updated, usedExamples, () => 0));
+    expect(selection?.example).toBe("ex2");
   });
 });

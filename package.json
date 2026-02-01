@@ -5,6 +5,7 @@
   "module": "index.ts",
   "scripts": {
     "compile": "bun build --compile index.ts --outfile bin/lexica",
+    "compile:dev": "bun lint && bun fmt && bun check-types && bun compile",
     "lint": "oxlint --fix",
     "fmt": "oxfmt",
     "check-types": "tsc --noEmit",

@@ -10,6 +10,8 @@ export type Term = Brand<string, "Term">;
 
 export type Meaning = Brand<string, "Meaning">;
 
+export type Score = Brand<number, "Score">;
+
 export interface Entry {
   /** 単語のテキスト */
   term: Term;
@@ -17,6 +19,8 @@ export interface Entry {
   meanings: Meaning[];
   /** 例文 */
   examples?: string[];
+  /** テストスコア */
+  score: Score;
 }
 
 export type VocabularyData = Partial<Record<DictionaryName, Entry[]>>;

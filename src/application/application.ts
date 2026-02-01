@@ -2,10 +2,12 @@ import { Result as Byethrow } from "@praha/byethrow";
 import {
   createEntry,
   overwriteExamples,
+  overwriteScore,
   parseMeaning,
   parseMeanings,
   parseTerm,
 } from "../core/entry";
+import { decrementScore, incrementScore, scoreToNumber } from "../core/score";
 import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
 import type { DictionaryName, Entry, Meaning, Term, VocabularyData } from "../core/types";
 import {
@@ -32,6 +34,54 @@ export interface ExampleGenerator {
     meaning: Meaning;
   }): Promise<Result<string[]>>;
 }
+
+export interface TestSelection {
+  entry: Entry;
+  example?: string;
+}
+
+interface TestSelectionStrategy {
+  isEligible: (entry: Entry) => boolean;
+  createSelection: (entry: Entry) => TestSelection | null;
+}
+
+const meaningsStrategy = (usedTerms: Set<Term>): TestSelectionStrategy => ({
+  isEligible: (entry) => !usedTerms.has(entry.term),
+  createSelection: (entry) => ({ entry }),
+});
+
+const examplesStrategy = (usedExamples: Set<string>, rng: () => number): TestSelectionStrategy => ({
+  isEligible: (entry) => (entry.examples ?? []).some((example) => !usedExamples.has(example)),
+  createSelection: (entry) => {
+    const examples = (entry.examples ?? []).filter((example) => !usedExamples.has(example));
+    if (examples.length === 0) {
+      return null;
+    }
+    const example = examples[Math.floor(rng() * examples.length)];
+    if (!example) {
+      return null;
+    }
+    return { entry, example };
+  },
+});
+
+const chooseWeightedEntry = (entries: Entry[], rng: () => number): Entry | null => {
+  if (entries.length === 0) {
+    return null;
+  }
+  const totalWeight = entries.reduce((sum, entry) => sum + 1 / (scoreToNumber(entry.score) + 1), 0);
+  const pick = rng() * totalWeight;
+  let cursor = 0;
+  let chosen = entries[0];
+  for (const entry of entries) {
+    cursor += 1 / (scoreToNumber(entry.score) + 1);
+    if (pick <= cursor) {
+      chosen = entry;
+      break;
+    }
+  }
+  return chosen ?? null;
+};
 
 const fromCore = <T>(result: CoreResult<T>): Result<T> => {
   if (Byethrow.isSuccess(result)) {
@@ -228,11 +278,17 @@ export const replaceEntry = (
   if (Byethrow.isFailure(term)) {
     return term;
   }
+  const currentEntry = fromCore(
+    listCoreEntries(state.vocabulary, state.dictionaryName, term.value),
+  );
+  if (Byethrow.isFailure(currentEntry)) {
+    return currentEntry;
+  }
   const meanings = fromCore(parseMeanings(meaningsInput));
   if (Byethrow.isFailure(meanings)) {
     return meanings;
   }
-  const entry = createEntry(term.value, meanings.value, examples);
+  const entry = createEntry(term.value, meanings.value, examples, currentEntry.value.score);
   const replaced = fromCore(replaceCoreEntry(state.vocabulary, state.dictionaryName, entry));
   if (Byethrow.isFailure(replaced)) {
     return replaced;
@@ -279,9 +335,7 @@ export const generateExamples = async (
   }
 
   const updatedEntry = overwriteExamples(currentEntry.value, generated.value);
-  const replaced = fromCore(
-    replaceCoreEntry(state.vocabulary, state.dictionaryName, updatedEntry),
-  );
+  const replaced = fromCore(replaceCoreEntry(state.vocabulary, state.dictionaryName, updatedEntry));
   if (Byethrow.isFailure(replaced)) {
     return replaced;
   }
@@ -290,4 +344,93 @@ export const generateExamples = async (
     entry: replaced.value.entry,
     dictionaryName: state.dictionaryName,
   });
+};
+
+const selectTestEntry = (
+  state: AppState,
+  strategy: TestSelectionStrategy,
+  rng: () => number,
+): Result<TestSelection | null> => {
+  const entries = fromCore(listCoreEntries(state.vocabulary, state.dictionaryName));
+  if (Byethrow.isFailure(entries)) {
+    return entries;
+  }
+
+  const eligible = entries.value.filter((entry) => strategy.isEligible(entry));
+  const chosen = chooseWeightedEntry(eligible, rng);
+  if (!chosen) {
+    return succeed(null);
+  }
+  return succeed(strategy.createSelection(chosen));
+};
+
+/**
+ * Selects the next meaning test entry based on score weighting.
+ */
+export const selectMeaningTestEntry = (
+  state: AppState,
+  usedTerms: Set<Term>,
+  rng: () => number = Math.random,
+): Result<TestSelection | null> => {
+  return selectTestEntry(state, meaningsStrategy(usedTerms), rng);
+};
+
+/**
+ * Selects the next example test entry based on score weighting.
+ */
+export const selectExampleTestEntry = (
+  state: AppState,
+  usedExamples: Set<string>,
+  rng: () => number = Math.random,
+): Result<TestSelection | null> => {
+  return selectTestEntry(state, examplesStrategy(usedExamples, rng), rng);
+};
+
+const updateTestScore = (
+  state: AppState,
+  termInput: string,
+  nextScore: (score: Entry["score"]) => Entry["score"],
+): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
+  const term = fromCore(parseTerm(termInput));
+  if (Byethrow.isFailure(term)) {
+    return term;
+  }
+
+  const currentEntry = fromCore(
+    listCoreEntries(state.vocabulary, state.dictionaryName, term.value),
+  );
+  if (Byethrow.isFailure(currentEntry)) {
+    return currentEntry;
+  }
+
+  const updatedEntry = overwriteScore(currentEntry.value, nextScore(currentEntry.value.score));
+  const replaced = fromCore(replaceCoreEntry(state.vocabulary, state.dictionaryName, updatedEntry));
+  if (Byethrow.isFailure(replaced)) {
+    return replaced;
+  }
+  return succeed({
+    state: { ...state, vocabulary: replaced.value.vocabulary },
+    entry: replaced.value.entry,
+    dictionaryName: state.dictionaryName,
+  });
+};
+
+/**
+ * Increments the score for a term when remembered.
+ */
+export const rememberEntry = (
+  state: AppState,
+  termInput: string,
+): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
+  return updateTestScore(state, termInput, incrementScore);
+};
+
+/**
+ * Decrements the score for a term when not remembered.
+ */
+export const forgetEntry = (
+  state: AppState,
+  termInput: string,
+): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
+  return updateTestScore(state, termInput, decrementScore);
 };

@@ -1,6 +1,8 @@
 import { Result as Byethrow } from "@praha/byethrow";
+import { createInterface } from "node:readline";
 import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
-import type { DictionaryName } from "../core/types";
+import type { DictionaryName, Term } from "../core/types";
+import { defaultTestCount, parseTestCount, parseTestMode } from "../core/test-mode";
 import { FileVocabularyStorage } from "../application/storage";
 import {
   addEntry,
@@ -10,7 +12,11 @@ import {
   listEntries,
   removeEntry,
   replaceEntry,
+  selectExampleTestEntry,
+  selectMeaningTestEntry,
   switchDictionary,
+  forgetEntry,
+  rememberEntry,
 } from "../application/application";
 import type { AppError } from "../application/application";
 import { createCliExampleGenerator } from "./ai-cli";
@@ -49,6 +55,8 @@ const printHelp = (): void => {
       "  add <term> <meaning>",
       "  remove <term> [meaning] -d <name>",
       "  examples <term> generate",
+      "  test meanings [count]",
+      "  test examples [count]",
       "  ls [term]",
       "  replace <term> <meaning...> -d <name>",
       "",
@@ -384,6 +392,108 @@ const run = async (): Promise<void> => {
       return;
     }
     printJson({ dictionary: currentDictionary, entry: result.value.entry });
+    return;
+  }
+
+  if (command === "test") {
+    const [modeInput, countInput] = [subcommand, ...rest];
+    if (!modeInput) {
+      printError({ kind: "invalid-input", reason: "Missing test mode" });
+      process.exitCode = 1;
+      return;
+    }
+    const mode = ensureSuccess(parseTestMode(modeInput));
+    const count = countInput ? ensureSuccess(parseTestCount(countInput)) : defaultTestCount();
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const question = (message: string): Promise<string> =>
+      new Promise((resolve) => {
+        rl.question(message, (answer) => resolve(answer));
+      });
+
+    const usedTerms = new Set<Term>();
+    const usedExamples = new Set<string>();
+    let asked = 0;
+    let testState = state;
+    const strategyByMode = {
+      meanings: {
+        select: () => selectMeaningTestEntry(testState, usedTerms),
+        revealPrompt: "enter to show meanings",
+        reveal: (selection: { entry: { meanings: string[] } }) => {
+          console.log(`${selection.entry.meanings.join(", ")}`);
+        },
+        rememberPrompt: "Do you remember?(y/n) ",
+        track: (selection: { entry: { term: Term } }) => usedTerms.add(selection.entry.term),
+      },
+      examples: {
+        select: () => selectExampleTestEntry(testState, usedExamples),
+        revealPrompt: "",
+        reveal: (selection: { example?: string }) => {
+          if (!selection.example) {
+            return false;
+          }
+          console.log(`${selection.example}\n`);
+          return true;
+        },
+        rememberPrompt: "Could you read it?(y/n) ",
+        track: (selection: { example?: string }) => {
+          if (selection.example) {
+            usedExamples.add(selection.example);
+          }
+        },
+      },
+    } as const;
+    const modeStrategy = strategyByMode[mode];
+
+    while (asked < count) {
+      const selection = modeStrategy.select();
+      if (Byethrow.isFailure(selection)) {
+        printError(selection.error);
+        process.exitCode = 1;
+        rl.close();
+        return;
+      }
+      if (!selection.value) {
+        break;
+      }
+
+      const { entry } = selection.value;
+      console.log(`----------\n${entry.term}\n----------\n`);
+      if (modeStrategy.revealPrompt.length > 0) {
+        await question(modeStrategy.revealPrompt);
+      }
+      const revealed = modeStrategy.reveal(selection.value);
+      if (revealed === false) {
+        break;
+      }
+      await Bun.sleep(1000);
+
+      const rememberPrompt = modeStrategy.rememberPrompt;
+      let answer = await question(rememberPrompt);
+      while (answer !== "y" && answer !== "n") {
+        answer = await question(rememberPrompt);
+      }
+      console.log("\n");
+      const updated =
+        answer === "y" ? rememberEntry(testState, entry.term) : forgetEntry(testState, entry.term);
+      if (Byethrow.isFailure(updated)) {
+        printError(updated.error);
+        process.exitCode = 1;
+        rl.close();
+        return;
+      }
+      testState = updated.value.state;
+      asked += 1;
+      modeStrategy.track(selection.value);
+    }
+
+    rl.close();
+    const saved = await storage.save(dictionaryPath, testState.vocabulary);
+    if (Byethrow.isFailure(saved)) {
+      printError(saved.error);
+      process.exitCode = 1;
+      return;
+    }
+    printJson({ dictionary: testState.dictionaryName, mode, asked, status: "tested" });
     return;
   }
 

@@ -2,11 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Result as Byethrow } from "@praha/byethrow";
 import type { Result as CoreResult } from "./result";
 import type { Dictionary, DictionaryName, Meaning, Term, VocabularyData } from "./types";
-import {
-  parseDictionary,
-  parseDictionaryName,
-  toDictionaryName,
-} from "./dictionary";
+import { parseDictionary, parseDictionaryName, toDictionaryName } from "./dictionary";
 import { createEntry, parseMeaning, parseMeanings, parseTerm, overwriteExamples } from "./entry";
 import { deleteEntry, listEntries, replaceEntry, upsertEntry } from "./vocabulary";
 
@@ -136,12 +132,7 @@ describe("vocabulary operations", () => {
 
     const secondary = unwrap(parseDictionary("travel"));
     const secondaryName = toDictionaryName(secondary);
-    const result = upsertEntry(
-      vocabulary,
-      secondaryName,
-      makeTerm("object"),
-      makeMeaning("対象"),
-    );
+    const result = upsertEntry(vocabulary, secondaryName, makeTerm("object"), makeMeaning("対象"));
     const { entry } = unwrap(result);
     expect(entry.meanings).toEqual([makeMeaning("対象")]);
   });

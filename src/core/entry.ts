@@ -1,6 +1,7 @@
 import * as v from "valibot";
-import type { Entry, Meaning, Term } from "./types";
+import type { Entry, Meaning, Score, Term } from "./types";
 import { failInvalidInput, succeed, type Result } from "./result";
+import { defaultScore } from "./score";
 
 const nonEmptyStringSchema = v.pipe(v.string(), v.trim(), v.minLength(1));
 const meaningsSchema = v.pipe(v.array(nonEmptyStringSchema), v.minLength(1));
@@ -49,11 +50,17 @@ export const parseMeanings = (values: string[]): Result<Meaning[]> => {
 /**
  * Creates an Entry from parsed inputs.
  */
-export const createEntry = (term: Term, meanings: Meaning[], examples?: string[]): Entry => {
+export const createEntry = (
+  term: Term,
+  meanings: Meaning[],
+  examples?: string[],
+  score?: Score,
+): Entry => {
+  const resolvedScore = score ?? defaultScore();
   if (examples === undefined) {
-    return { term, meanings };
+    return { term, meanings, score: resolvedScore };
   }
-  return { term, meanings, examples };
+  return { term, meanings, examples, score: resolvedScore };
 };
 
 /**
@@ -61,4 +68,11 @@ export const createEntry = (term: Term, meanings: Meaning[], examples?: string[]
  */
 export const overwriteExamples = (entry: Entry, examples: string[]): Entry => {
   return { ...entry, examples };
+};
+
+/**
+ * Overwrites entry score with a new value.
+ */
+export const overwriteScore = (entry: Entry, score: Score): Entry => {
+  return { ...entry, score };
 };

@@ -1,6 +1,8 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import * as v from "valibot";
 import type { Entry, VocabularyData } from "../core/types";
+import { createEntry, parseMeanings, parseTerm } from "../core/entry";
+import { defaultScore, parseScore } from "../core/score";
 
 export type StorageError = { kind: "file-io"; reason: string };
 
@@ -24,6 +26,7 @@ const entrySchema = v.object({
   term: v.pipe(v.string(), v.trim(), v.minLength(1)),
   meanings: v.pipe(v.array(v.pipe(v.string(), v.trim(), v.minLength(1))), v.minLength(1)),
   examples: v.optional(v.array(v.pipe(v.string(), v.trim(), v.minLength(1)))),
+  score: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });
 
 const vocabularySchema = v.record(v.string(), v.array(entrySchema));
@@ -33,7 +36,27 @@ const parseVocabularyData = (input: unknown): Result<VocabularyData> => {
   if (!parsed.success) {
     return fail("Invalid vocabulary data format");
   }
-  return succeed(parsed.output as Record<string, Entry[]>);
+  const normalized: VocabularyData = {};
+  for (const [dictionaryName, entries] of Object.entries(parsed.output)) {
+    const nextEntries: Entry[] = [];
+    for (const entry of entries) {
+      const term = parseTerm(entry.term);
+      if (Byethrow.isFailure(term)) {
+        return fail("Invalid vocabulary term format");
+      }
+      const meanings = parseMeanings(entry.meanings);
+      if (Byethrow.isFailure(meanings)) {
+        return fail("Invalid vocabulary meanings format");
+      }
+      const score = parseScore(entry.score ?? defaultScore());
+      if (Byethrow.isFailure(score)) {
+        return fail("Invalid vocabulary score format");
+      }
+      nextEntries.push(createEntry(term.value, meanings.value, entry.examples, score.value));
+    }
+    normalized[dictionaryName as keyof VocabularyData] = nextEntries;
+  }
+  return succeed(normalized);
 };
 
 /**
