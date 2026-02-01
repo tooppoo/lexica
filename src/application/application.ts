@@ -28,7 +28,7 @@ export interface AppState {
 }
 
 export interface ExampleGenerator {
-  (input: { dictionaryKey: DictionaryKey; term: Term; meaning: Meaning }): Result<string[]>;
+  (input: { dictionaryKey: DictionaryKey; term: Term; meaning: Meaning }): Promise<Result<string[]>>;
 }
 
 const fromCore = <T>(result: CoreResult<T>): Result<T> => {
@@ -244,12 +244,12 @@ export const replaceEntry = (
 /**
  * Generates examples using a provided generator and overwrites the entry examples.
  */
-export const generateExamples = (
+export const generateExamples = async (
   state: AppState,
   termInput: string,
   meaningInput: string,
   generator: ExampleGenerator
-): Result<{ state: AppState; entry: Entry; dictionaryKey: DictionaryKey }> => {
+): Promise<Result<{ state: AppState; entry: Entry; dictionaryKey: DictionaryKey }>> => {
   const term = fromCore(parseTerm(termInput));
   if (Byethrow.isFailure(term)) {
     return term;
@@ -266,7 +266,7 @@ export const generateExamples = (
     return currentEntry;
   }
 
-  const generated = generator({
+  const generated = await generator({
     dictionaryKey: state.dictionaryKey,
     term: term.value,
     meaning: meaning.value,

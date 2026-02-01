@@ -122,21 +122,21 @@ describe("application vocabulary operations", () => {
 });
 
 describe("application example generation", () => {
-  test("generates examples", () => {
+  test("generates examples", async () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, "object", "物"));
     const generated = unwrap(
-      generateExamples(added.state, "object", "物", () =>
+      await generateExamples(added.state, "object", "物", async () =>
         Byethrow.succeed(["example sentence"])
       )
     );
     expect(generated.entry.examples).toEqual(["example sentence"]);
   });
 
-  test("returns ai-failed when generator fails", () => {
+  test("returns ai-failed when generator fails", async () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, "object", "物"));
-    const result = generateExamples(added.state, "object", "物", () =>
+    const result = await generateExamples(added.state, "object", "物", async () =>
       Byethrow.fail({ kind: "ai-failed", reason: "failure" })
     );
     expectErrorKind(result, "ai-failed");

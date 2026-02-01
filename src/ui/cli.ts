@@ -6,12 +6,15 @@ import {
   addEntry,
   clearDictionary,
   createState,
+  generateExamples,
   listEntries,
   removeEntry,
   replaceEntry,
   switchDictionary,
 } from "../application/application";
 import type { AppError } from "../application/application";
+import { createCliExampleGenerator } from "./ai-cli";
+import { readCliConfig } from "./cli-config";
 
 const DEFAULT_DICTIONARY_PATH = "lexica.dictionary.json";
 const DEFAULT_STATE_PATH = "lexica.state.json";
@@ -45,6 +48,7 @@ const printHelp = (): void => {
       "  dictionary clear -d <source>:<target>",
       "  add <term> <meaning>",
       "  remove <term> [meaning] -d <source>:<target>",
+      "  examples <term> generate",
       "  ls [term]",
       "  replace <term> <meaning...> -d <source>:<target>",
       "",
@@ -322,6 +326,45 @@ const run = async (): Promise<void> => {
       return;
     }
     printJson({ dictionary: currentDictionary, targetDictionary: target, entry: result.value.entry });
+    return;
+  }
+
+  if (command === "examples") {
+    const term = subcommand;
+    const action = rest[0];
+    if (!term || action !== "generate") {
+      printError({ kind: "invalid-input", reason: "Usage: examples <term> generate" });
+      process.exitCode = 1;
+      return;
+    }
+    const config = ensureSuccess(await readCliConfig(configPath));
+    const generator = createCliExampleGenerator(config);
+    const currentEntry = listEntries(state, term);
+    if (Byethrow.isFailure(currentEntry)) {
+      printError(currentEntry.error);
+      process.exitCode = 1;
+      return;
+    }
+    if (Array.isArray(currentEntry.value.entries)) {
+      printError({ kind: "invalid-input", reason: "Expected a single entry" });
+      process.exitCode = 1;
+      return;
+    }
+    const entry = currentEntry.value.entries;
+    const meaning = entry.meanings[0];
+    const result = await generateExamples(state, term, meaning, generator);
+    if (Byethrow.isFailure(result)) {
+      printError(result.error);
+      process.exitCode = 1;
+      return;
+    }
+    const saved = await storage.save(dictionaryPath, result.value.state.vocabulary);
+    if (Byethrow.isFailure(saved)) {
+      printError(saved.error);
+      process.exitCode = 1;
+      return;
+    }
+    printJson({ dictionary: currentDictionary, entry: result.value.entry });
     return;
   }
 
