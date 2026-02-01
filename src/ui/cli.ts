@@ -1,5 +1,6 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { createInterface } from "node:readline";
+import { parseArgs } from "util";
 import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
 import type { DictionaryName, Term } from "../core/types";
 import { defaultTestCount, parseTestCount, parseTestMode } from "../core/test-mode";
@@ -79,45 +80,36 @@ type GlobalParseResult =
   | { dictionaryPath: string; statePath: string; configPath: string; args: string[] };
 
 const parseGlobalOptions = (args: string[]): GlobalParseResult => {
-  let dictionaryPath = DEFAULT_DICTIONARY_PATH;
-  let statePath = DEFAULT_STATE_PATH;
-  let configPath = DEFAULT_CONFIG_PATH;
-  const rest: string[] = [];
-  for (let i = 0; i < args.length; i += 1) {
-    const arg = args[i];
-    if (!arg) {
-      continue;
+  try {
+    const { values, positionals } = parseArgs({
+      args,
+      options: {
+        path: { type: "string", short: "p" },
+        dictionary: { type: "string" },
+        state: { type: "string" },
+        config: { type: "string" },
+        help: { type: "boolean", short: "h" },
+      },
+      strict: true,
+      allowPositionals: true,
+    });
+    if (values.help) {
+      return {
+        dictionaryPath: DEFAULT_DICTIONARY_PATH,
+        statePath: DEFAULT_STATE_PATH,
+        configPath: DEFAULT_CONFIG_PATH,
+        args: ["--help"],
+      };
     }
-    if (arg === "-p" || arg === "--path" || arg === "--dictionary") {
-      const next = args[i + 1];
-      if (!next) {
-        return { error: "Missing dictionary path" } as const;
-      }
-      dictionaryPath = next;
-      i += 1;
-      continue;
-    }
-    if (arg === "--state") {
-      const next = args[i + 1];
-      if (!next) {
-        return { error: "Missing state path" } as const;
-      }
-      statePath = next;
-      i += 1;
-      continue;
-    }
-    if (arg === "--config") {
-      const next = args[i + 1];
-      if (!next) {
-        return { error: "Missing config path" } as const;
-      }
-      configPath = next;
-      i += 1;
-      continue;
-    }
-    rest.push(arg);
+    const dictionaryPath = values.dictionary ?? values.path ?? DEFAULT_DICTIONARY_PATH;
+    const statePath = values.state ?? DEFAULT_STATE_PATH;
+    const configPath = values.config ?? DEFAULT_CONFIG_PATH;
+    return { dictionaryPath, statePath, configPath, args: positionals } as const;
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Invalid arguments",
+    } as const;
   }
-  return { dictionaryPath, statePath, configPath, args: rest } as const;
 };
 
 const extractOption = (args: string[], names: string[]) => {
