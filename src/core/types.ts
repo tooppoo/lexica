@@ -1,20 +1,10 @@
-/** サポートされている辞書 */
-export const SUPPORTED_DICTIONARIES = [
-  { source: "en", target: "ja" },
-  { source: "ja", target: "en" },
-] as const;
-
-export const SUPPORTED_DICTIONARY_KEYS = ["en:ja", "ja:en"] as const;
-
-export type SupportedDictionary = (typeof SUPPORTED_DICTIONARIES)[number];
-export type SupportedSource = SupportedDictionary["source"];
-export type SupportedTarget = SupportedDictionary["target"];
-
-export type DictionaryKey = (typeof SUPPORTED_DICTIONARY_KEYS)[number];
-
-export type Dictionary = SupportedDictionary;
-
 type Brand<T, Name extends string> = T & { readonly __brand: Name };
+
+export type DictionaryName = Brand<string, "DictionaryName">;
+
+export interface Dictionary {
+  name: DictionaryName;
+}
 
 export type Term = Brand<string, "Term">;
 
@@ -29,4 +19,4 @@ export interface Entry {
   examples?: string[];
 }
 
-export type VocabularyData = Partial<Record<DictionaryKey, Entry[]>>;
+export type VocabularyData = Partial<Record<DictionaryName, Entry[]>>;

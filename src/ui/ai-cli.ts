@@ -20,10 +20,10 @@ const providerBaseArgs = (provider: CliConfig["ai"]["provider"]): string[] => {
   }
 };
 
-const buildPrompt = (term: string, meaning: string, dictionaryKey: string): string => {
+const buildPrompt = (term: string, meaning: string, dictionaryName: string): string => {
   return [
     "You are generating example sentences for a language learner.",
-    `Dictionary: ${dictionaryKey}`,
+    `Dictionary: ${dictionaryName}`,
     `Term: ${term}`,
     `Meaning: ${meaning}`,
     "Return one or more concise example sentences.",
@@ -35,11 +35,11 @@ const buildPrompt = (term: string, meaning: string, dictionaryKey: string): stri
  * Creates an example generator that calls an external CLI tool.
  */
 export const createCliExampleGenerator = (config: CliConfig): ExampleGenerator => {
-  return async ({ dictionaryKey, term, meaning }) => {
+  return async ({ dictionaryName, term, meaning }) => {
     const command = providerCommand(config.ai.provider);
     const baseArgs = providerBaseArgs(config.ai.provider);
     const extraArgs = config.ai.args ?? [];
-    const prompt = buildPrompt(term, meaning, dictionaryKey);
+    const prompt = buildPrompt(term, meaning, dictionaryName);
     try {
       const process = Bun.spawn({
         cmd: [command, ...baseArgs, ...extraArgs, prompt],

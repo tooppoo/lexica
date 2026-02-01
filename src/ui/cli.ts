@@ -1,6 +1,6 @@
 import { Result as Byethrow } from "@praha/byethrow";
-import { parseDictionary, parseDictionaryKey, toDictionaryKey } from "../core/dictionary";
-import type { DictionaryKey } from "../core/types";
+import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
+import type { DictionaryName } from "../core/types";
 import { FileVocabularyStorage } from "../application/storage";
 import {
   addEntry,
@@ -44,13 +44,13 @@ const printHelp = (): void => {
       "  -h, --help                 Show this help",
       "",
       "Commands:",
-      "  dictionary switch <source> <target>",
-      "  dictionary clear -d <source>:<target>",
+      "  dictionary switch <name>",
+      "  dictionary clear -d <name>",
       "  add <term> <meaning>",
-      "  remove <term> [meaning] -d <source>:<target>",
+      "  remove <term> [meaning] -d <name>",
       "  examples <term> generate",
       "  ls [term]",
-      "  replace <term> <meaning...> -d <source>:<target>",
+      "  replace <term> <meaning...> -d <name>",
       "",
       "Defaults:",
       `  Dictionary: ${DEFAULT_DICTIONARY_PATH}`,
@@ -130,22 +130,22 @@ const extractOption = (args: string[], names: string[]) => {
   return { value, args: rest } as const;
 };
 
-const loadCurrentDictionary = async (path: string): Promise<CliResult<DictionaryKey>> => {
+const loadCurrentDictionary = async (path: string): Promise<CliResult<DictionaryName>> => {
   const file = Bun.file(path);
   if (!(await file.exists())) {
-    const dictionary = parseDictionary("en", "ja");
+    const dictionary = parseDictionary("default");
     if (Byethrow.isFailure(dictionary)) {
       return dictionary;
     }
-    return Byethrow.succeed(toDictionaryKey(dictionary.value));
+    return Byethrow.succeed(toDictionaryName(dictionary.value));
   }
   try {
     const content = JSON.parse(await file.text());
-    const key = content?.dictionaryKey;
-    if (typeof key !== "string") {
+    const name = content?.dictionaryName ?? content?.dictionaryKey;
+    if (typeof name !== "string") {
       return fail("invalid-input", "Invalid state format");
     }
-    return parseDictionaryKey(key);
+    return parseDictionaryName(name);
   } catch (error) {
     return fail("file-io", error instanceof Error ? error.message : "Failed to read state");
   }
@@ -153,10 +153,10 @@ const loadCurrentDictionary = async (path: string): Promise<CliResult<Dictionary
 
 const saveCurrentDictionary = async (
   path: string,
-  dictionaryKey: DictionaryKey,
+  dictionaryName: DictionaryName,
 ): Promise<CliResult<void>> => {
   try {
-    await Bun.write(path, JSON.stringify({ dictionaryKey }, null, 2));
+    await Bun.write(path, JSON.stringify({ dictionaryName }, null, 2));
     return Byethrow.succeed(undefined);
   } catch (error) {
     return fail("file-io", error instanceof Error ? error.message : "Failed to write state");
@@ -196,25 +196,25 @@ const run = async (): Promise<void> => {
   const [command, subcommand, ...rest] = args;
 
   if (command === "dictionary" && subcommand === "switch") {
-    const [source, target] = rest;
-    if (!source || !target) {
-      printError({ kind: "invalid-input", reason: "Missing source/target" });
+    const [name] = rest;
+    if (!name) {
+      printError({ kind: "invalid-input", reason: "Missing dictionary name" });
       process.exitCode = 1;
       return;
     }
-    const result = switchDictionary(state, source, target);
+    const result = switchDictionary(state, name);
     if (Byethrow.isFailure(result)) {
       printError(result.error);
       process.exitCode = 1;
       return;
     }
-    const saved = await saveCurrentDictionary(statePath, result.value.dictionaryKey);
+    const saved = await saveCurrentDictionary(statePath, result.value.dictionaryName);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
       return;
     }
-    printJson({ dictionary: result.value.dictionaryKey, status: "switched" });
+    printJson({ dictionary: result.value.dictionaryName, status: "switched" });
     return;
   }
 
@@ -225,7 +225,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const target = ensureSuccess(parseDictionaryKey(extracted.value));
+    const target = ensureSuccess(parseDictionaryName(extracted.value));
     const result = clearDictionary(state, extracted.value);
     if (Byethrow.isFailure(result)) {
       printError(result.error);
@@ -272,7 +272,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const target = ensureSuccess(parseDictionaryKey(extracted.value));
+    const target = ensureSuccess(parseDictionaryName(extracted.value));
     const [term, meaning] = extracted.args;
     if (!term) {
       printError({ kind: "invalid-input", reason: "Missing term" });
@@ -315,7 +315,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const target = ensureSuccess(parseDictionaryKey(extracted.value));
+    const target = ensureSuccess(parseDictionaryName(extracted.value));
     const [term, ...meaningsInput] = extracted.args;
     if (!term || meaningsInput.length === 0) {
       printError({ kind: "invalid-input", reason: "Missing term/meanings" });

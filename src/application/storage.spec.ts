@@ -24,7 +24,7 @@ describe("memory storage", () => {
     const term = unwrapCore(parseTerm("object"));
     const meanings = unwrapCore(parseMeanings(["物"]));
     const data = {
-      "en:ja": [createEntry(term, meanings, ["example"])],
+      default: [createEntry(term, meanings, ["example"])],
     };
     unwrap(await storage.save("memory", data));
     const loaded = unwrap(await storage.load("memory"));

@@ -1,6 +1,6 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
-import { parseDictionary, toDictionaryKey } from "../core/dictionary";
+import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
 import { parseMeaning, parseTerm } from "../core/entry";
 import type { Result as CoreResult } from "../core/result";
 import {
@@ -37,27 +37,27 @@ const expectErrorKind = <T>(result: Result<T>, kind: AppError["kind"]): void => 
 };
 
 const createDefaultState = () => {
-  const dictionary = unwrapCore(parseDictionary("en", "ja"));
-  return createState(toDictionaryKey(dictionary), {});
+  const dictionary = unwrapCore(parseDictionary("default"));
+  return createState(toDictionaryName(dictionary), {});
 };
 
 describe("application dictionary operations", () => {
   test("switches dictionary", () => {
     const state = createDefaultState();
-    const switched = unwrap(switchDictionary(state, "en", "ja"));
-    expect(switched.dictionaryKey).toBe("en:ja");
+    const switched = unwrap(switchDictionary(state, "tech"));
+    expect(switched.dictionaryName).toBe(unwrapCore(parseDictionaryName("tech")));
   });
 
   test("rejects unsupported dictionary", () => {
     const state = createDefaultState();
-    const result = switchDictionary(state, "fr", "ja");
+    const result = switchDictionary(state, " ");
     expectErrorKind(result, "invalid-input");
   });
 
   test("clears dictionary", () => {
     const state = createDefaultState();
     const updated = unwrap(addEntry(state, "object", "物")).state;
-    const cleared = unwrap(clearDictionary(updated, "en:ja"));
+    const cleared = unwrap(clearDictionary(updated, "default"));
     const list = unwrap(listEntries(cleared.state));
     expect(Array.isArray(list.entries)).toBe(true);
     if (Array.isArray(list.entries)) {

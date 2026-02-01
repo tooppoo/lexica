@@ -5,10 +5,10 @@ skinparam classAttributeIconSize 0
 ' docs/terms.md に定義された語彙のみを使用すること
 
 class "語彙データ" {
-  entriesByDictionary: DictionaryKey -> Entry[]
+  entriesByDictionary: DictionaryName -> Entry[]
 }
 
-class DictionaryKey {
+class DictionaryName {
   value: string
 }
 
@@ -19,19 +19,18 @@ class Entry {
 }
 
 class Dictionary {
-  source: string
-  target: string
+  name: string
 }
 
 class "例文"
 
-"語彙データ" "1" o-- "*" DictionaryKey
-DictionaryKey "1" o-- "*" Entry
-DictionaryKey ..> Dictionary : derived
+"語彙データ" "1" o-- "*" DictionaryName
+DictionaryName "1" o-- "*" Entry
+DictionaryName ..> Dictionary : derived
 Entry "0" -- "*" "例文"
 
 note right of Entry
-  一意性: (dictionaryKey, term)
+  一意性: (dictionaryName, term)
 end note
 
 note bottom of "例文"

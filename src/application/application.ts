@@ -6,8 +6,8 @@ import {
   parseMeanings,
   parseTerm,
 } from "../core/entry";
-import { parseDictionary, parseDictionaryKey, toDictionaryKey } from "../core/dictionary";
-import type { DictionaryKey, Entry, Meaning, Term, VocabularyData } from "../core/types";
+import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
+import type { DictionaryName, Entry, Meaning, Term, VocabularyData } from "../core/types";
 import {
   deleteEntry,
   listEntries as listCoreEntries,
@@ -21,13 +21,13 @@ export type AppError = CoreError | { kind: "ai-failed"; reason: string };
 export type Result<T> = Byethrow.Result<T, AppError>;
 
 export interface AppState {
-  dictionaryKey: DictionaryKey;
+  dictionaryName: DictionaryName;
   vocabulary: VocabularyData;
 }
 
 export interface ExampleGenerator {
   (input: {
-    dictionaryKey: DictionaryKey;
+    dictionaryName: DictionaryName;
     term: Term;
     meaning: Meaning;
   }): Promise<Result<string[]>>;
@@ -47,50 +47,49 @@ const failNotFound = (reason: string): Result<never> => ({
 });
 
 /**
- * Creates an application state from a dictionary key and vocabulary data.
+ * Creates an application state from a dictionary name and vocabulary data.
  */
 export const createState = (
-  dictionaryKey: DictionaryKey,
+  dictionaryName: DictionaryName,
   vocabulary: VocabularyData,
 ): AppState => ({
-  dictionaryKey,
+  dictionaryName,
   vocabulary,
 });
 
 /**
- * Switches the current dictionary using source/target input.
+ * Switches the current dictionary using a dictionary name.
  */
 export const switchDictionary = (
   state: AppState,
-  source: string,
-  target: string,
-): Result<{ state: AppState; dictionaryKey: DictionaryKey }> => {
-  const parsed = fromCore(parseDictionary(source, target));
+  name: string,
+): Result<{ state: AppState; dictionaryName: DictionaryName }> => {
+  const parsed = fromCore(parseDictionary(name));
   if (Byethrow.isFailure(parsed)) {
     return parsed;
   }
-  const dictionaryKey = toDictionaryKey(parsed.value);
+  const dictionaryName = toDictionaryName(parsed.value);
   return succeed({
-    state: { ...state, dictionaryKey },
-    dictionaryKey,
+    state: { ...state, dictionaryName },
+    dictionaryName,
   });
 };
 
 /**
- * Clears entries for the specified dictionary key.
+ * Clears entries for the specified dictionary name.
  */
 export const clearDictionary = (
   state: AppState,
-  dictionaryKeyInput: string,
-): Result<{ state: AppState; dictionaryKey: DictionaryKey }> => {
-  const dictionaryKey = fromCore(parseDictionaryKey(dictionaryKeyInput));
-  if (Byethrow.isFailure(dictionaryKey)) {
-    return dictionaryKey;
+  dictionaryNameInput: string,
+): Result<{ state: AppState; dictionaryName: DictionaryName }> => {
+  const dictionaryName = fromCore(parseDictionaryName(dictionaryNameInput));
+  if (Byethrow.isFailure(dictionaryName)) {
+    return dictionaryName;
   }
-  const vocabulary = { ...state.vocabulary, [dictionaryKey.value]: [] };
+  const vocabulary = { ...state.vocabulary, [dictionaryName.value]: [] };
   return succeed({
     state: { ...state, vocabulary },
-    dictionaryKey: dictionaryKey.value,
+    dictionaryName: dictionaryName.value,
   });
 };
 
@@ -101,7 +100,7 @@ export const addEntry = (
   state: AppState,
   termInput: string,
   meaningInput: string,
-): Result<{ state: AppState; entry: Entry; dictionaryKey: DictionaryKey }> => {
+): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
   const term = fromCore(parseTerm(termInput));
   if (Byethrow.isFailure(term)) {
     return term;
@@ -111,7 +110,7 @@ export const addEntry = (
     return meaning;
   }
   const updated = fromCore(
-    upsertEntry(state.vocabulary, state.dictionaryKey, term.value, meaning.value),
+    upsertEntry(state.vocabulary, state.dictionaryName, term.value, meaning.value),
   );
   if (Byethrow.isFailure(updated)) {
     return updated;
@@ -119,7 +118,7 @@ export const addEntry = (
   return succeed({
     state: { ...state, vocabulary: updated.value.vocabulary },
     entry: updated.value.entry,
-    dictionaryKey: state.dictionaryKey,
+    dictionaryName: state.dictionaryName,
   });
 };
 
@@ -129,24 +128,24 @@ export const addEntry = (
 export const listEntries = (
   state: AppState,
   termInput?: string,
-): Result<{ dictionaryKey: DictionaryKey; entries: Entry[] | Entry }> => {
+): Result<{ dictionaryName: DictionaryName; entries: Entry[] | Entry }> => {
   if (termInput === undefined) {
-    const entries = fromCore(listCoreEntries(state.vocabulary, state.dictionaryKey));
+    const entries = fromCore(listCoreEntries(state.vocabulary, state.dictionaryName));
     if (Byethrow.isFailure(entries)) {
       return entries;
     }
-    return succeed({ dictionaryKey: state.dictionaryKey, entries: entries.value });
+    return succeed({ dictionaryName: state.dictionaryName, entries: entries.value });
   }
 
   const term = fromCore(parseTerm(termInput));
   if (Byethrow.isFailure(term)) {
     return term;
   }
-  const entries = fromCore(listCoreEntries(state.vocabulary, state.dictionaryKey, term.value));
+  const entries = fromCore(listCoreEntries(state.vocabulary, state.dictionaryName, term.value));
   if (Byethrow.isFailure(entries)) {
     return entries;
   }
-  return succeed({ dictionaryKey: state.dictionaryKey, entries: entries.value });
+  return succeed({ dictionaryName: state.dictionaryName, entries: entries.value });
 };
 
 /**
@@ -156,20 +155,20 @@ export const removeEntry = (
   state: AppState,
   termInput: string,
   meaningInput?: string,
-): Result<{ state: AppState; dictionaryKey: DictionaryKey }> => {
+): Result<{ state: AppState; dictionaryName: DictionaryName }> => {
   const term = fromCore(parseTerm(termInput));
   if (Byethrow.isFailure(term)) {
     return term;
   }
 
   if (meaningInput === undefined) {
-    const deleted = fromCore(deleteEntry(state.vocabulary, state.dictionaryKey, term.value));
+    const deleted = fromCore(deleteEntry(state.vocabulary, state.dictionaryName, term.value));
     if (Byethrow.isFailure(deleted)) {
       return deleted;
     }
     return succeed({
       state: { ...state, vocabulary: deleted.value.vocabulary },
-      dictionaryKey: state.dictionaryKey,
+      dictionaryName: state.dictionaryName,
     });
   }
 
@@ -178,7 +177,9 @@ export const removeEntry = (
     return meaning;
   }
 
-  const currentEntry = fromCore(listCoreEntries(state.vocabulary, state.dictionaryKey, term.value));
+  const currentEntry = fromCore(
+    listCoreEntries(state.vocabulary, state.dictionaryName, term.value),
+  );
   if (Byethrow.isFailure(currentEntry)) {
     return currentEntry;
   }
@@ -189,18 +190,18 @@ export const removeEntry = (
   }
 
   if (filtered.length === 0) {
-    const deleted = fromCore(deleteEntry(state.vocabulary, state.dictionaryKey, term.value));
+    const deleted = fromCore(deleteEntry(state.vocabulary, state.dictionaryName, term.value));
     if (Byethrow.isFailure(deleted)) {
       return deleted;
     }
     return succeed({
       state: { ...state, vocabulary: deleted.value.vocabulary },
-      dictionaryKey: state.dictionaryKey,
+      dictionaryName: state.dictionaryName,
     });
   }
 
   const replaced = fromCore(
-    replaceCoreEntry(state.vocabulary, state.dictionaryKey, {
+    replaceCoreEntry(state.vocabulary, state.dictionaryName, {
       ...currentEntry.value,
       meanings: filtered,
     }),
@@ -210,7 +211,7 @@ export const removeEntry = (
   }
   return succeed({
     state: { ...state, vocabulary: replaced.value.vocabulary },
-    dictionaryKey: state.dictionaryKey,
+    dictionaryName: state.dictionaryName,
   });
 };
 
@@ -222,7 +223,7 @@ export const replaceEntry = (
   termInput: string,
   meaningsInput: string[],
   examples?: string[],
-): Result<{ state: AppState; entry: Entry; dictionaryKey: DictionaryKey }> => {
+): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
   const term = fromCore(parseTerm(termInput));
   if (Byethrow.isFailure(term)) {
     return term;
@@ -232,14 +233,14 @@ export const replaceEntry = (
     return meanings;
   }
   const entry = createEntry(term.value, meanings.value, examples);
-  const replaced = fromCore(replaceCoreEntry(state.vocabulary, state.dictionaryKey, entry));
+  const replaced = fromCore(replaceCoreEntry(state.vocabulary, state.dictionaryName, entry));
   if (Byethrow.isFailure(replaced)) {
     return replaced;
   }
   return succeed({
     state: { ...state, vocabulary: replaced.value.vocabulary },
     entry: replaced.value.entry,
-    dictionaryKey: state.dictionaryKey,
+    dictionaryName: state.dictionaryName,
   });
 };
 
@@ -251,7 +252,7 @@ export const generateExamples = async (
   termInput: string,
   meaningInput: string,
   generator: ExampleGenerator,
-): Promise<Result<{ state: AppState; entry: Entry; dictionaryKey: DictionaryKey }>> => {
+): Promise<Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }>> => {
   const term = fromCore(parseTerm(termInput));
   if (Byethrow.isFailure(term)) {
     return term;
@@ -261,13 +262,15 @@ export const generateExamples = async (
     return meaning;
   }
 
-  const currentEntry = fromCore(listCoreEntries(state.vocabulary, state.dictionaryKey, term.value));
+  const currentEntry = fromCore(
+    listCoreEntries(state.vocabulary, state.dictionaryName, term.value),
+  );
   if (Byethrow.isFailure(currentEntry)) {
     return currentEntry;
   }
 
   const generated = await generator({
-    dictionaryKey: state.dictionaryKey,
+    dictionaryName: state.dictionaryName,
     term: term.value,
     meaning: meaning.value,
   });
@@ -276,13 +279,15 @@ export const generateExamples = async (
   }
 
   const updatedEntry = overwriteExamples(currentEntry.value, generated.value);
-  const replaced = fromCore(replaceCoreEntry(state.vocabulary, state.dictionaryKey, updatedEntry));
+  const replaced = fromCore(
+    replaceCoreEntry(state.vocabulary, state.dictionaryName, updatedEntry),
+  );
   if (Byethrow.isFailure(replaced)) {
     return replaced;
   }
   return succeed({
     state: { ...state, vocabulary: replaced.value.vocabulary },
     entry: replaced.value.entry,
-    dictionaryKey: state.dictionaryKey,
+    dictionaryName: state.dictionaryName,
   });
 };

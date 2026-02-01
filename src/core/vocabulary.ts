@@ -1,4 +1,4 @@
-import type { DictionaryKey, Entry, Meaning, Term, VocabularyData } from "./types";
+import type { DictionaryName, Entry, Meaning, Term, VocabularyData } from "./types";
 import { createEntry } from "./entry";
 import { failNotFound, succeed, type Result } from "./result";
 
@@ -12,11 +12,11 @@ const findEntryIndex = (entries: Entry[], term: Term): number =>
  */
 export const upsertEntry = (
   vocabulary: VocabularyData,
-  dictionaryKey: DictionaryKey,
+  dictionaryName: DictionaryName,
   term: Term,
   meaning: Meaning,
 ): Result<{ vocabulary: VocabularyData; entry: Entry }> => {
-  const currentEntries = vocabulary[dictionaryKey] ?? [];
+  const currentEntries = vocabulary[dictionaryName] ?? [];
   const entries = cloneEntries(currentEntries);
   const index = findEntryIndex(entries, term);
 
@@ -24,7 +24,7 @@ export const upsertEntry = (
     const entry = createEntry(term, [meaning]);
     const nextEntries = [...entries, entry];
     return succeed({
-      vocabulary: { ...vocabulary, [dictionaryKey]: nextEntries },
+      vocabulary: { ...vocabulary, [dictionaryName]: nextEntries },
       entry,
     });
   }
@@ -40,7 +40,7 @@ export const upsertEntry = (
   entries[index] = updated;
 
   return succeed({
-    vocabulary: { ...vocabulary, [dictionaryKey]: entries },
+    vocabulary: { ...vocabulary, [dictionaryName]: entries },
     entry: updated,
   });
 };
@@ -50,19 +50,19 @@ export const upsertEntry = (
  */
 export function listEntries(
   vocabulary: VocabularyData,
-  dictionaryKey: DictionaryKey,
+  dictionaryName: DictionaryName,
 ): Result<Entry[]>;
 export function listEntries(
   vocabulary: VocabularyData,
-  dictionaryKey: DictionaryKey,
+  dictionaryName: DictionaryName,
   term: Term,
 ): Result<Entry>;
 export function listEntries(
   vocabulary: VocabularyData,
-  dictionaryKey: DictionaryKey,
+  dictionaryName: DictionaryName,
   term?: Term,
 ): Result<Entry[] | Entry> {
-  const entries = vocabulary[dictionaryKey] ?? [];
+  const entries = vocabulary[dictionaryName] ?? [];
   if (term === undefined) {
     return succeed(entries);
   }
@@ -84,10 +84,10 @@ export function listEntries(
  */
 export const replaceEntry = (
   vocabulary: VocabularyData,
-  dictionaryKey: DictionaryKey,
+  dictionaryName: DictionaryName,
   entry: Entry,
 ): Result<{ vocabulary: VocabularyData; entry: Entry }> => {
-  const entries = vocabulary[dictionaryKey] ?? [];
+  const entries = vocabulary[dictionaryName] ?? [];
   const nextEntries = cloneEntries(entries);
   const index = findEntryIndex(nextEntries, entry.term);
   if (index === -1) {
@@ -95,7 +95,7 @@ export const replaceEntry = (
   }
   nextEntries[index] = entry;
   return succeed({
-    vocabulary: { ...vocabulary, [dictionaryKey]: nextEntries },
+    vocabulary: { ...vocabulary, [dictionaryName]: nextEntries },
     entry,
   });
 };
@@ -105,15 +105,15 @@ export const replaceEntry = (
  */
 export const deleteEntry = (
   vocabulary: VocabularyData,
-  dictionaryKey: DictionaryKey,
+  dictionaryName: DictionaryName,
   term: Term,
 ): Result<{ vocabulary: VocabularyData }> => {
-  const entries = vocabulary[dictionaryKey] ?? [];
+  const entries = vocabulary[dictionaryName] ?? [];
   const index = findEntryIndex(entries, term);
   if (index === -1) {
     return failNotFound("Entry not found");
   }
   const nextEntries = entries.filter((entry) => entry.term !== term);
-  const nextVocabulary = { ...vocabulary, [dictionaryKey]: nextEntries };
+  const nextVocabulary = { ...vocabulary, [dictionaryName]: nextEntries };
   return succeed({ vocabulary: nextVocabulary });
 };

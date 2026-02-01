@@ -14,9 +14,9 @@ npm i -g @philomagi/lexica
 
 ### 辞書操作
 
-- `lexica dictionary switch <source> <target>`
+- `lexica dictionary switch <name>`
   - 現在の辞書を切り替える（未登録の場合は作成）
-- `lexica dictionary clear -d <source>:<target>`
+- `lexica dictionary clear -d <name>`
   - 指定辞書の全削除
 
 ### 単語操作
@@ -24,7 +24,7 @@ npm i -g @philomagi/lexica
 - `lexica add <term> <meaning>`
   - 現在の辞書に単語を登録
   - 既存単語の場合は meaning を追記
-- `lexica remove <term> [meaning] -d <source>:<target>`
+- `lexica remove <term> [meaning] -d <name>`
   - meaning 指定時: 指定の意味のみ削除
   - meaning 省略時: 単語エントリを削除
   - 破壊的操作のため辞書指定必須
@@ -34,12 +34,12 @@ npm i -g @philomagi/lexica
 ### 例
 
 ```bash
-lexica dictionary switch en ja
+lexica dictionary switch tech
 lexica add dog 犬
 lexica add dog いぬ
 lexica ls dog
-lexica remove dog いぬ -d en:ja
-lexica dictionary clear -d en:ja
+lexica remove dog いぬ -d tech
+lexica dictionary clear -d tech
 ```
 
 補足:

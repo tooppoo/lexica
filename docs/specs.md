@@ -4,9 +4,9 @@
 
 # 用語
 
-- 語彙データ: 辞書キーごとに Entry の配列を持つJSONデータである。
-- 辞書: 学習対象の言語の組み合わせである（例: 英→日）。表現はオブジェクトである。
-- 辞書キー: 辞書の source/target を `source:target` で結合した文字列である。
+- 語彙データ: 辞書名ごとに Entry の配列を持つJSONデータである。
+- 辞書: 辞書名で識別される語彙のまとまりである。表現はオブジェクトである。
+- 辞書名: 辞書を識別する文字列である。
 - 生成物: AIによって作成される例文である。
 
 # データモデル（抽象）
@@ -14,24 +14,23 @@
 ## エンティティ
 
 - 語彙データ
-  - dictionaryKey: Entry[] のマップ（トップレベル）
+  - dictionaryName: Entry[] のマップ（トップレベル）
 - Entry
   - term: string（必須、空文字不可）
   - meanings: string[]（必須、要素数は1以上）
   - examples: string[]（任意）
 - Dictionary
-  - source: string（必須）
-  - target: string（必須）
-- DictionaryKey
-  - source/target を `source:target` で結合した文字列
+  - name: string（必須）
+- DictionaryName
+  - 辞書名
 
 ## 制約
 
-- Entry は (dictionaryKey, term) の組で一意である。
+- Entry は (dictionaryName, term) の組で一意である。
 - 同一綴りでも辞書が異なる場合は別の Entry として扱う。
 - 生成物は語彙データ内に保存され、再生成時は上書きされる。
 - 語彙データはJSONで永続化される。
-- Entry は Dictionary を保持せず、dictionaryKey から導出される。
+- Entry は Dictionary を保持せず、dictionaryName から導出される。
 
 # 機能仕様
 
@@ -42,7 +41,7 @@
 - 出力: Entry（登録後の状態）
 - 副作用: 語彙データの更新（新規作成または意味の追記）
 - エラー: 入力不正、ファイルI/O
-- 例: dictionary=英→日, term="object", meaning="物"
+- 例: dictionary=tech, term="object", meaning="物"
 - Covers: FR-001, FR-002, FR-005, FR-011, DR-001, DR-002, DR-003
 
 ## 2) 辞書単位の管理
@@ -52,7 +51,7 @@
 - 出力: 指定辞書に属する Entry の集合または指定 Entry
 - 副作用: なし（参照のみ）
 - エラー: 入力不正、参照不能、ファイルI/O
-- 例: dictionary=英→日 の一覧取得
+- 例: dictionary=tech の一覧取得
 - Covers: FR-008, FR-009, FR-010, NFR-001, DR-002, DR-003
 
 ## 3) 例文生成
@@ -72,7 +71,7 @@
 - 出力: Entry または Entry の集合
 - 副作用: なし
 - エラー: 入力不正、参照不能、ファイルI/O
-- 例: dictionary=英→日 の全件確認
+- 例: dictionary=tech の全件確認
 - Covers: FR-004, NFR-001
 
 ## 5) 削除・上書き
@@ -110,7 +109,7 @@
 ## Storage
 
 - 語彙データはユーザーが指定した任意パスにJSONとして保存される。
-- JSONのトップレベルは dictionaryKey をキーとする Entry[] のマップである。
+- JSONのトップレベルは dictionaryName をキーとする Entry[] のマップである。
 - Gitリポジトリであることを前提としない。
 
 # コマンドライン仕様
@@ -125,11 +124,11 @@
 
 ### 辞書操作
 
-- `lexica dictionary switch <source> <target>`
+- `lexica dictionary switch <name>`
   - 現在の辞書を切り替える。未登録の辞書は新規作成する。
-  - 入力: source, target
+  - 入力: name
   - 出力: 現在選択中の辞書と切替結果
-- `lexica dictionary clear -d <source>:<target>`
+- `lexica dictionary clear -d <name>`
   - 指定辞書の単語を全削除する。
   - 入力: dictionary（必須）
   - 出力: 成功結果
@@ -141,7 +140,7 @@
   - 既存単語の場合は meaning を追記する。
   - 入力: term, meaning
   - 出力: Entry（登録後の状態）
-- `lexica remove <term> [meaning] -d <source>:<target>`
+- `lexica remove <term> [meaning] -d <name>`
   - meaning 指定時は指定の意味のみ削除する。
   - meaning 省略時は単語エントリ全体を削除する。
   - 破壊的操作のため辞書指定は必須である。
@@ -162,7 +161,6 @@
 
 # 制約
 
-- サポート辞書は英→日/日→英である。
 - 初期のAI連携はOpenAIのみでよい（将来的にローカルLLM連携を許容する）。
 - 配布形態は単一バイナリである。
 - GUI/モバイル対応、クラウド同期・アカウント機能、SRS/復習アルゴリズムは対象外である。
