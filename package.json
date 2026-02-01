@@ -5,7 +5,8 @@
   "scripts": {
     "compile": "bun build --compile index.ts --outfile bin/lexica",
     "lint": "oxlint --fix",
-    "fmt": "oxfmt"
+    "fmt": "oxfmt",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@praha/byethrow": "0.9.0",

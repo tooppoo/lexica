@@ -27,7 +27,14 @@ export const parseDictionaryKey = (key: string): Result<DictionaryKey> => {
   if (!parsedKey.success) {
     return failInvalidInput("Invalid dictionary key format");
   }
-  const [source, target] = parsedKey.output.split(":");
+  const parts = parsedKey.output.split(":");
+  if (parts.length !== 2) {
+    return failInvalidInput("Invalid dictionary key format");
+  }
+  const [source, target] = parts;
+  if (!source || !target) {
+    return failInvalidInput("Invalid dictionary key format");
+  }
   const dictionary = parseDictionary(source, target);
   if (dictionary.type === "Failure") {
     return dictionary;

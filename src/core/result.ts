@@ -10,21 +10,21 @@ export type Result<T> = Byethrow.Result<T, CoreError>;
  * Wraps a successful value into a Result.
  */
 export const succeed = <T>(value: T): Result<T> => {
-  return Byethrow.succeed(value);
+  return { type: "Success", value };
 };
 
 /**
  * Creates an invalid-input failure Result.
  */
 export const failInvalidInput = (reason: string): Result<never> => {
-  return Byethrow.fail({ kind: "invalid-input", reason });
+  return { type: "Failure", error: { kind: "invalid-input", reason } };
 };
 
 /**
  * Creates a not-found failure Result.
  */
 export const failNotFound = (reason: string): Result<never> => {
-  return Byethrow.fail({ kind: "not-found", reason });
+  return { type: "Failure", error: { kind: "not-found", reason } };
 };
 
 /**

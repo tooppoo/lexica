@@ -13,7 +13,7 @@ import {
   replaceEntry,
   switchDictionary,
 } from "./application";
-import type { Result } from "./application";
+import type { AppError, Result } from "./application";
 
 const unwrap = <T>(result: Result<T>): T => {
   if (!Byethrow.isSuccess(result)) {
@@ -29,7 +29,7 @@ const unwrapCore = <T>(result: CoreResult<T>): T => {
   return result.value;
 };
 
-const expectErrorKind = <T>(result: Result<T>, kind: string): void => {
+const expectErrorKind = <T>(result: Result<T>, kind: AppError["kind"]): void => {
   expect(Byethrow.isFailure(result)).toBe(true);
   if (Byethrow.isFailure(result)) {
     expect(result.error.kind).toBe(kind);
@@ -127,8 +127,8 @@ describe("application example generation", () => {
     const added = unwrap(addEntry(state, "object", "物"));
     const generated = unwrap(
       await generateExamples(added.state, "object", "物", async () =>
-        Byethrow.succeed(["example sentence"])
-      )
+        Byethrow.succeed(["example sentence"]),
+      ),
     );
     expect(generated.entry.examples).toEqual(["example sentence"]);
   });
@@ -137,7 +137,7 @@ describe("application example generation", () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, "object", "物"));
     const result = await generateExamples(added.state, "object", "物", async () =>
-      Byethrow.fail({ kind: "ai-failed", reason: "failure" })
+      Byethrow.fail({ kind: "ai-failed", reason: "failure" }),
     );
     expectErrorKind(result, "ai-failed");
   });

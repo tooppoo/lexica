@@ -56,7 +56,7 @@ const printHelp = (): void => {
       `  Dictionary: ${DEFAULT_DICTIONARY_PATH}`,
       `  State: ${DEFAULT_STATE_PATH}`,
       `  Config: ${DEFAULT_CONFIG_PATH}`,
-    ].join("\n")
+    ].join("\n"),
   );
 };
 
@@ -66,13 +66,20 @@ type CliResult<T> = Byethrow.Result<T, CliError>;
 const fail = (kind: "file-io" | "invalid-input", reason: string): CliResult<never> =>
   Byethrow.fail({ kind, reason });
 
-const parseGlobalOptions = (args: string[]) => {
+type GlobalParseResult =
+  | { error: string }
+  | { dictionaryPath: string; statePath: string; configPath: string; args: string[] };
+
+const parseGlobalOptions = (args: string[]): GlobalParseResult => {
   let dictionaryPath = DEFAULT_DICTIONARY_PATH;
   let statePath = DEFAULT_STATE_PATH;
   let configPath = DEFAULT_CONFIG_PATH;
   const rest: string[] = [];
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
+    if (!arg) {
+      continue;
+    }
     if (arg === "-p" || arg === "--path" || arg === "--dictionary") {
       const next = args[i + 1];
       if (!next) {
@@ -110,6 +117,9 @@ const extractOption = (args: string[], names: string[]) => {
   let value: string | undefined;
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
+    if (!arg) {
+      continue;
+    }
     if (names.includes(arg)) {
       value = args[i + 1];
       i += 1;
@@ -143,7 +153,7 @@ const loadCurrentDictionary = async (path: string): Promise<CliResult<Dictionary
 
 const saveCurrentDictionary = async (
   path: string,
-  dictionaryKey: DictionaryKey
+  dictionaryKey: DictionaryKey,
 ): Promise<CliResult<void>> => {
   try {
     await Bun.write(path, JSON.stringify({ dictionaryKey }, null, 2));
@@ -325,7 +335,11 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    printJson({ dictionary: currentDictionary, targetDictionary: target, entry: result.value.entry });
+    printJson({
+      dictionary: currentDictionary,
+      targetDictionary: target,
+      entry: result.value.entry,
+    });
     return;
   }
 
@@ -352,6 +366,11 @@ const run = async (): Promise<void> => {
     }
     const entry = currentEntry.value.entries;
     const meaning = entry.meanings[0];
+    if (!meaning) {
+      printError({ kind: "invalid-input", reason: "Entry has no meanings" });
+      process.exitCode = 1;
+      return;
+    }
     const result = await generateExamples(state, term, meaning, generator);
     if (Byethrow.isFailure(result)) {
       printError(result.error);

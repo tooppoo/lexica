@@ -14,9 +14,11 @@ export interface VocabularyStorage {
   save(path: string, data: VocabularyData): ResultAsync<void>;
 }
 
-const succeed = <T>(value: T): Result<T> => Byethrow.succeed(value);
-const fail = (reason: string): Result<never> =>
-  Byethrow.fail({ kind: "file-io", reason });
+const succeed = <T>(value: T): Result<T> => ({ type: "Success", value });
+const fail = (reason: string): Result<never> => ({
+  type: "Failure",
+  error: { kind: "file-io", reason },
+});
 
 const entrySchema = v.object({
   term: v.pipe(v.string(), v.trim(), v.minLength(1)),

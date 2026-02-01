@@ -1,12 +1,6 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
-import {
-  failInvalidInput,
-  failNotFound,
-  isFailure,
-  isSuccess,
-  succeed,
-} from "./result";
+import { failInvalidInput, failNotFound, isFailure, isSuccess, succeed } from "./result";
 
 describe("core result helpers", () => {
   test("succeed wraps value", () => {

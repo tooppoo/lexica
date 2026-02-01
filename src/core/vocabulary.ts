@@ -14,7 +14,7 @@ export const upsertEntry = (
   vocabulary: VocabularyData,
   dictionaryKey: DictionaryKey,
   term: Term,
-  meaning: Meaning
+  meaning: Meaning,
 ): Result<{ vocabulary: VocabularyData; entry: Entry }> => {
   const currentEntries = vocabulary[dictionaryKey] ?? [];
   const entries = cloneEntries(currentEntries);
@@ -30,6 +30,9 @@ export const upsertEntry = (
   }
 
   const existing = entries[index];
+  if (!existing) {
+    return failNotFound("Entry not found");
+  }
   const updated: Entry = {
     ...existing,
     meanings: [...existing.meanings, meaning],
@@ -45,11 +48,20 @@ export const upsertEntry = (
 /**
  * Lists all entries for a dictionary, or returns a single entry by term.
  */
-export const listEntries = (
+export function listEntries(
   vocabulary: VocabularyData,
   dictionaryKey: DictionaryKey,
-  term?: Term
-): Result<Entry[] | Entry> => {
+): Result<Entry[]>;
+export function listEntries(
+  vocabulary: VocabularyData,
+  dictionaryKey: DictionaryKey,
+  term: Term,
+): Result<Entry>;
+export function listEntries(
+  vocabulary: VocabularyData,
+  dictionaryKey: DictionaryKey,
+  term?: Term,
+): Result<Entry[] | Entry> {
   const entries = vocabulary[dictionaryKey] ?? [];
   if (term === undefined) {
     return succeed(entries);
@@ -60,8 +72,12 @@ export const listEntries = (
     return failNotFound("Entry not found");
   }
 
-  return succeed(entries[index]);
-};
+  const entry = entries[index];
+  if (!entry) {
+    return failNotFound("Entry not found");
+  }
+  return succeed(entry);
+}
 
 /**
  * Replaces an existing entry with the provided entry.
@@ -69,7 +85,7 @@ export const listEntries = (
 export const replaceEntry = (
   vocabulary: VocabularyData,
   dictionaryKey: DictionaryKey,
-  entry: Entry
+  entry: Entry,
 ): Result<{ vocabulary: VocabularyData; entry: Entry }> => {
   const entries = vocabulary[dictionaryKey] ?? [];
   const nextEntries = cloneEntries(entries);
@@ -90,7 +106,7 @@ export const replaceEntry = (
 export const deleteEntry = (
   vocabulary: VocabularyData,
   dictionaryKey: DictionaryKey,
-  term: Term
+  term: Term,
 ): Result<{ vocabulary: VocabularyData }> => {
   const entries = vocabulary[dictionaryKey] ?? [];
   const index = findEntryIndex(entries, term);

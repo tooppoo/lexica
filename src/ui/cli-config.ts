@@ -15,9 +15,11 @@ const configSchema = v.object({
 
 export type CliConfig = v.InferOutput<typeof configSchema>;
 
-const succeed = <T>(value: T): CliConfigResult<T> => Byethrow.succeed(value);
-const fail = (kind: CliConfigError["kind"], reason: string): CliConfigResult<never> =>
-  Byethrow.fail({ kind, reason });
+const succeed = <T>(value: T): CliConfigResult<T> => ({ type: "Success", value });
+const fail = (kind: CliConfigError["kind"], reason: string): CliConfigResult<never> => ({
+  type: "Failure",
+  error: { kind, reason },
+});
 
 /**
  * Reads CLI configuration from a JSON file.

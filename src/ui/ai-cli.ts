@@ -38,10 +38,11 @@ export const createCliExampleGenerator = (config: CliConfig): ExampleGenerator =
   return async ({ dictionaryKey, term, meaning }) => {
     const command = providerCommand(config.ai.provider);
     const baseArgs = providerBaseArgs(config.ai.provider);
+    const extraArgs = config.ai.args ?? [];
     const prompt = buildPrompt(term, meaning, dictionaryKey);
     try {
       const process = Bun.spawn({
-        cmd: [command, ...baseArgs, ...config.ai.args, prompt],
+        cmd: [command, ...baseArgs, ...extraArgs, prompt],
         stdout: "pipe",
         stderr: "pipe",
       });
