@@ -16,7 +16,7 @@ const providerBaseArgs = (provider: CliConfig["ai"]["provider"]): string[] => {
     case "codex":
       return ["exec"];
     case "claude-code":
-      return [];
+      return ["-p"];
   }
 };
 
