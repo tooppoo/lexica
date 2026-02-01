@@ -4,6 +4,10 @@
   "type": "module",
   "module": "index.ts",
   "license": "MIT",
+  "files": [
+    "LICENSE",
+    "bin/lexica"
+  ],
   "scripts": {
     "compile": "bun build --compile index.ts --outfile bin/lexica",
     "compile:dev": "bun lint && bun fmt && bun check-types && bun compile",
