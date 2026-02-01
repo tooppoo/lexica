@@ -27,8 +27,19 @@ describe("dictionary parsing", () => {
     expect(dictionary).toEqual({ source: "en", target: "ja" });
   });
 
+  test("parses supported reverse dictionary", () => {
+    const result = parseDictionary("ja", "en");
+    const dictionary = unwrap(result);
+    expect(dictionary).toEqual({ source: "ja", target: "en" });
+  });
+
   test("rejects unsupported dictionary", () => {
     const result = parseDictionary("fr", "ja");
+    expectErrorKind(result, "invalid-input");
+  });
+
+  test("rejects unsupported dictionary direction", () => {
+    const result = parseDictionary("en", "en");
     expectErrorKind(result, "invalid-input");
   });
 
@@ -37,8 +48,13 @@ describe("dictionary parsing", () => {
     expect(unwrap(result)).toBe("en:ja");
   });
 
-  test("rejects unsupported dictionary key", () => {
+  test("parses reverse dictionary key", () => {
     const result = parseDictionaryKey("ja:en");
+    expect(unwrap(result)).toBe("ja:en");
+  });
+
+  test("rejects unsupported dictionary key", () => {
+    const result = parseDictionaryKey("en:en");
     expectErrorKind(result, "invalid-input");
   });
 

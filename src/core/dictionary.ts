@@ -1,22 +1,26 @@
 import * as v from "valibot";
 import type { Dictionary, DictionaryKey } from "./types";
-import { SUPPORTED_SOURCES, SUPPORTED_TARGETS } from "./types";
+import { SUPPORTED_DICTIONARIES, SUPPORTED_DICTIONARY_KEYS } from "./types";
 import { failInvalidInput, succeed, type Result } from "./result";
 
-const sourceSchema = v.picklist(SUPPORTED_SOURCES);
-const targetSchema = v.picklist(SUPPORTED_TARGETS);
 const dictionaryKeySchema = v.pipe(v.string(), v.regex(/^[^:]+:[^:]+$/));
+
+const isSupportedDictionary = (source: string, target: string): Dictionary | null => {
+  const match = SUPPORTED_DICTIONARIES.find(
+    (dictionary) => dictionary.source === source && dictionary.target === target,
+  );
+  return match ?? null;
+};
 
 /**
  * Parses source/target strings into a Dictionary when supported.
  */
 export const parseDictionary = (source: string, target: string): Result<Dictionary> => {
-  const parsedSource = v.safeParse(sourceSchema, source);
-  const parsedTarget = v.safeParse(targetSchema, target);
-  if (!parsedSource.success || !parsedTarget.success) {
+  const supported = isSupportedDictionary(source, target);
+  if (!supported) {
     return failInvalidInput("Unsupported dictionary");
   }
-  return succeed({ source: parsedSource.output, target: parsedTarget.output });
+  return succeed(supported);
 };
 
 /**
@@ -46,5 +50,15 @@ export const parseDictionaryKey = (key: string): Result<DictionaryKey> => {
  * Derives a DictionaryKey from a Dictionary.
  */
 export const toDictionaryKey = (dictionary: Dictionary): DictionaryKey => {
-  return `${dictionary.source}:${dictionary.target}`;
+  const index = SUPPORTED_DICTIONARIES.findIndex(
+    (item) => item.source === dictionary.source && item.target === dictionary.target,
+  );
+  if (index < 0) {
+    throw new Error("Unsupported dictionary");
+  }
+  const key = SUPPORTED_DICTIONARY_KEYS[index];
+  if (!key) {
+    throw new Error("Unsupported dictionary");
+  }
+  return key;
 };

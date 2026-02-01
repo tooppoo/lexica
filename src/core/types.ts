@@ -1,17 +1,18 @@
-/** サポートされている翻訳元言語 */
-export const SUPPORTED_SOURCES = ["en"] as const;
-/** サポートされている翻訳先言語 */
-export const SUPPORTED_TARGETS = ["ja"] as const;
+/** サポートされている辞書 */
+export const SUPPORTED_DICTIONARIES = [
+  { source: "en", target: "ja" },
+  { source: "ja", target: "en" },
+] as const;
 
-export type SupportedSource = (typeof SUPPORTED_SOURCES)[number];
-export type SupportedTarget = (typeof SUPPORTED_TARGETS)[number];
+export const SUPPORTED_DICTIONARY_KEYS = ["en:ja", "ja:en"] as const;
 
-export type DictionaryKey = `${SupportedSource}:${SupportedTarget}`;
+export type SupportedDictionary = (typeof SUPPORTED_DICTIONARIES)[number];
+export type SupportedSource = SupportedDictionary["source"];
+export type SupportedTarget = SupportedDictionary["target"];
 
-export interface Dictionary {
-  source: SupportedSource;
-  target: SupportedTarget;
-}
+export type DictionaryKey = (typeof SUPPORTED_DICTIONARY_KEYS)[number];
+
+export type Dictionary = SupportedDictionary;
 
 type Brand<T, Name extends string> = T & { readonly __brand: Name };
 
