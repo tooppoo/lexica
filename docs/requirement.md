@@ -56,6 +56,8 @@
   Trace: request.md の「制約」
 - FR-024: 意味テストでは同じ意味が選択された場合はスキップできること。  
   Trace: request.md の「制約」
+- FR-025: 手動で例文を追加できること。  
+  Trace: request.md の「ゴール」「利用シナリオ」
 
 # 非機能要件（NFR）
 
@@ -112,6 +114,7 @@
 # トレーサビリティ（Request -> Requirement）
 
 - request.md「ゴール」 -> FR-001, FR-003, FR-004, FR-008, FR-009, FR-010, FR-014, NFR-002
+- request.md「ゴール」 -> FR-001, FR-003, FR-004, FR-008, FR-009, FR-010, FR-014, FR-025, NFR-002
 - request.md「制約」 -> FR-002, FR-005, FR-006, FR-007, FR-011, FR-012, FR-013, FR-015, FR-016, FR-017, FR-018, FR-019, FR-020, FR-021, FR-022, FR-023, FR-024, NFR-001, NFR-003, DR-001, DR-002, DR-003, DR-004, DR-005, DR-006, DR-007, OR-001, OR-002, OR-003, OR-004, C-001, C-007, C-008
 - request.md「非ゴール」 -> C-003, C-004, C-005
-- request.md「利用シナリオ」 -> FR-001, FR-003, FR-008, FR-014
+- request.md「利用シナリオ」 -> FR-001, FR-003, FR-008, FR-014, FR-025

@@ -7,6 +7,7 @@ import { defaultExampleCount } from "../core/example-count";
 import type { Result as CoreResult } from "../core/result";
 import {
   addEntry,
+  addEntryExample,
   addEntryMeanings,
   clearDictionary,
   createState,
@@ -132,6 +133,13 @@ describe("application vocabulary operations", () => {
     const added = unwrap(addEntry(state, "object", "物"));
     const replaced = unwrap(replaceEntry(added.state, "object", ["対象"]));
     expect(replaced.entry.meanings).toEqual([unwrapCore(parseMeaning("対象"))]);
+  });
+
+  test("adds manual example", () => {
+    const state = createDefaultState();
+    const added = unwrap(addEntry(state, "object", "物"));
+    const updated = unwrap(addEntryExample(added.state, "object", "Example sentence."));
+    expect(updated.entry.examples).toEqual(["Example sentence."]);
   });
 });
 

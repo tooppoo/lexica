@@ -3,7 +3,15 @@ import { Result as Byethrow } from "@praha/byethrow";
 import type { Result as CoreResult } from "./result";
 import type { Dictionary, DictionaryName, Meaning, Term, VocabularyData } from "./types";
 import { parseDictionary, parseDictionaryName, toDictionaryName } from "./dictionary";
-import { createEntry, parseMeaning, parseMeanings, parseTerm, overwriteExamples } from "./entry";
+import {
+  appendExample,
+  createEntry,
+  overwriteExamples,
+  parseExample,
+  parseMeaning,
+  parseMeanings,
+  parseTerm,
+} from "./entry";
 import { deleteEntry, listEntries, replaceEntry, upsertEntry } from "./vocabulary";
 
 const unwrap = <T>(result: CoreResult<T>): T => {
@@ -56,6 +64,11 @@ describe("entry parsing", () => {
     expect(meaning).toBe(unwrap(parseMeaning("物")));
   });
 
+  test("parses valid example", () => {
+    const example = unwrap(parseExample("An example sentence."));
+    expect(example).toBe(unwrap(parseExample("An example sentence.")));
+  });
+
   test("rejects empty term", () => {
     const result = parseTerm("");
     expectErrorKind(result, "invalid-input");
@@ -63,6 +76,11 @@ describe("entry parsing", () => {
 
   test("rejects empty meaning", () => {
     const result = parseMeaning("  ");
+    expectErrorKind(result, "invalid-input");
+  });
+
+  test("rejects empty example", () => {
+    const result = parseExample(" ");
     expectErrorKind(result, "invalid-input");
   });
 
@@ -96,6 +114,14 @@ describe("entry creation and example overwrite", () => {
     const entry = createEntry(term, meanings, ["old example"]);
     const updated = overwriteExamples(entry, ["new example"]);
     expect(updated.examples).toEqual(["new example"]);
+  });
+
+  test("appends example", () => {
+    const term = unwrap(parseTerm("object"));
+    const meanings = unwrap(parseMeanings(["物"]));
+    const entry = createEntry(term, meanings, ["old example"]);
+    const updated = appendExample(entry, "new example");
+    expect(updated.examples).toEqual(["old example", "new example"]);
   });
 });
 

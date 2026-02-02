@@ -8,6 +8,7 @@ import { defaultExampleCount, parseExampleCount } from "../core/example-count";
 import { FileVocabularyStorage } from "../application/storage";
 import {
   addEntryMeanings,
+  addEntryExample,
   clearDictionary,
   createState,
   generateExamples,
@@ -57,6 +58,7 @@ const printHelp = (): void => {
       "  add <term> <meaning[,meaning]>",
       "  remove <term> [meaning] -d <name>",
       "  examples <term> generate [--count <count>] (default: 3)",
+      "  examples <term> add <example>",
       "  test meanings [count]",
       "  test examples [count]",
       "  ls [term]",
@@ -357,14 +359,37 @@ const run = async (): Promise<void> => {
   if (command === "examples") {
     const term = subcommand;
     const action = rest[0];
-    if (!term || action !== "generate") {
+    if (!term || (action !== "generate" && action !== "add")) {
       printError({
         kind: "invalid-input",
-        reason: "Usage: examples <term> generate [--count <count>]",
+        reason: "Usage: examples <term> generate [--count <count>] | examples <term> add <example>",
       });
       process.exitCode = 1;
       return;
     }
+    if (action === "add") {
+      const exampleInput = rest.slice(1).join(" ").trim();
+      if (!exampleInput) {
+        printError({ kind: "invalid-input", reason: "Missing example" });
+        process.exitCode = 1;
+        return;
+      }
+      const result = addEntryExample(state, term, exampleInput);
+      if (Byethrow.isFailure(result)) {
+        printError(result.error);
+        process.exitCode = 1;
+        return;
+      }
+      const saved = await storage.save(dictionaryPath, result.value.state.vocabulary);
+      if (Byethrow.isFailure(saved)) {
+        printError(saved.error);
+        process.exitCode = 1;
+        return;
+      }
+      printJson({ dictionary: currentDictionary, entry: result.value.entry });
+      return;
+    }
+
     const countArgs = rest.slice(1);
     const countFlag = countArgs.some((arg) => arg === "-c" || arg === "--count");
     const extracted = extractOption(countArgs, ["-c", "--count"]);

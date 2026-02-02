@@ -1,8 +1,10 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import {
+  appendExample,
   createEntry,
   overwriteExamples,
   overwriteScore,
+  parseExample,
   parseMeaning,
   parseMeanings,
   parseTerm,
@@ -187,6 +189,40 @@ export const addEntryMeanings = (
   return succeed({
     state: { ...state, vocabulary },
     entry: entry ?? createEntry(term.value, meanings.value),
+    dictionaryName: state.dictionaryName,
+  });
+};
+
+/**
+ * Adds a manual example to the entry in the current dictionary.
+ */
+export const addEntryExample = (
+  state: AppState,
+  termInput: string,
+  exampleInput: string,
+): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
+  const term = fromCore(parseTerm(termInput));
+  if (Byethrow.isFailure(term)) {
+    return term;
+  }
+  const example = fromCore(parseExample(exampleInput));
+  if (Byethrow.isFailure(example)) {
+    return example;
+  }
+  const currentEntry = fromCore(
+    listCoreEntries(state.vocabulary, state.dictionaryName, term.value),
+  );
+  if (Byethrow.isFailure(currentEntry)) {
+    return currentEntry;
+  }
+  const updatedEntry = appendExample(currentEntry.value, example.value);
+  const replaced = fromCore(replaceCoreEntry(state.vocabulary, state.dictionaryName, updatedEntry));
+  if (Byethrow.isFailure(replaced)) {
+    return replaced;
+  }
+  return succeed({
+    state: { ...state, vocabulary: replaced.value.vocabulary },
+    entry: replaced.value.entry,
     dictionaryName: state.dictionaryName,
   });
 };

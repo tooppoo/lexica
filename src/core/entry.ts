@@ -37,6 +37,17 @@ export const parseMeaning = (value: string): Result<Meaning> => {
 };
 
 /**
+ * Parses a raw example string.
+ */
+export const parseExample = (value: string): Result<string> => {
+  const parsed = parseNonEmpty(value);
+  if (parsed.type === "Failure") {
+    return parsed;
+  }
+  return succeed(parsed.value);
+};
+
+/**
  * Parses an array of meaning strings into Meaning[] with at least one entry.
  */
 export const parseMeanings = (values: string[]): Result<Meaning[]> => {
@@ -68,6 +79,13 @@ export const createEntry = (
  */
 export const overwriteExamples = (entry: Entry, examples: string[]): Entry => {
   return { ...entry, examples };
+};
+
+/**
+ * Appends a new example to the entry.
+ */
+export const appendExample = (entry: Entry, example: string): Entry => {
+  return { ...entry, examples: [...(entry.examples ?? []), example] };
 };
 
 /**

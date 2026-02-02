@@ -68,7 +68,17 @@
 - 例: term="object", meaning="対象" に対する例文生成
 - Covers: FR-003, FR-006, DR-004, C-001
 
-## 4) 登録内容のチェック
+## 4) 例文の手動追加
+
+- 目的: 既存の単語に例文を手動で追記する。
+- 入力: dictionary, term, example（既存 Entry 参照）
+- 出力: Entry（例文が追加された状態）
+- 副作用: 例文の追記
+- エラー: 入力不正、参照不能、ファイルI/O
+- 例: term="object", example="This is an object."
+- Covers: FR-025, DR-004
+
+## 5) 登録内容のチェック
 
 - 目的: 登録済みの単語・例文を参照し確認できる。
 - 入力: dictionary, term（任意）
@@ -78,7 +88,7 @@
 - 例: dictionary=tech の全件確認
 - Covers: FR-004, NFR-001
 
-## 5) 削除・上書き
+## 6) 削除・上書き
 
 - 目的: 既存 Entry の削除または上書きを行う。
 - 入力: dictionary, term, （上書き時は Entry 全体）
@@ -88,7 +98,7 @@
 - 例: term="object" の削除
 - Covers: FR-007
 
-## 6) テスト（意味/例文）
+## 7) テスト（意味/例文）
 
 - 目的: 登録済みの単語・意味・例文を使って記憶状況を記録する。
 - 入力: dictionary, mode（meanings/examples）, count（任意、未指定時は10）
@@ -128,6 +138,7 @@
 - UpsertEntry: (dictionary, term, meaning) を受け取り、Entry を返す。
 - ListEntries: (dictionary, term?) を受け取り、Entry または Entry[] を返す。
 - GenerateExamples: (dictionary, term, meaning) を受け取り、Entry を返す。
+- AddExample: (dictionary, term, example) を受け取り、Entry を返す。
 - ReplaceEntry: (dictionary, term, entry) を受け取り、成功結果を返す。
 - DeleteEntry: (dictionary, term) を受け取り、成功結果を返す。
 - RunTest: (dictionary, mode, count?) を受け取り、テスト結果を返す。
@@ -173,6 +184,10 @@
   - 既存単語の場合は meaning を追記する。
   - 入力: term, meaning（カンマ区切りで複数可）
   - 出力: Entry（登録後の状態）
+- `lexica examples <term> add <example>`
+  - 既存単語に例文を手動で追記する。
+  - 入力: term, example
+  - 出力: Entry（登録後の状態）
 - `lexica remove <term> [meaning] -d <name>`
   - meaning 指定時は指定の意味のみ削除する。
   - meaning 省略時は単語エントリ全体を削除する。
@@ -216,36 +231,37 @@
 - FR-001 -> 機能仕様 1)
 - FR-002 -> 機能仕様 1), データモデル
 - FR-003 -> 機能仕様 3)
-- FR-004 -> 機能仕様 4)
+- FR-004 -> 機能仕様 5)
 - FR-005 -> 機能仕様 1), インタフェース/Storage
 - FR-006 -> 機能仕様 3)
-- FR-007 -> 機能仕様 5)
+- FR-007 -> 機能仕様 6)
 - FR-008 -> 機能仕様 2)
 - FR-009 -> 機能仕様 2)
 - FR-010 -> データモデル/制約
 - FR-011 -> 機能仕様 1)
 - FR-012 -> 共通仕様
 - FR-013 -> 共通仕様
-- FR-014 -> 機能仕様 6)
-- FR-015 -> 機能仕様 6)
-- FR-016 -> 機能仕様 6)
-- FR-017 -> 機能仕様 6)
-- FR-018 -> 共通仕様/機能仕様 6)
-- FR-019 -> 共通仕様/機能仕様 6)
-- FR-020 -> 共通仕様/機能仕様 6)
-- FR-021 -> 共通仕様/機能仕様 6)
-- FR-022 -> 共通仕様/機能仕様 6)
-- FR-023 -> 共通仕様/機能仕様 6)
-- FR-024 -> 共通仕様/機能仕様 6)
-- NFR-001 -> 機能仕様 2)/4)
+- FR-014 -> 機能仕様 7)
+- FR-015 -> 機能仕様 7)
+- FR-016 -> 機能仕様 7)
+- FR-017 -> 機能仕様 7)
+- FR-018 -> 共通仕様/機能仕様 7)
+- FR-019 -> 共通仕様/機能仕様 7)
+- FR-020 -> 共通仕様/機能仕様 7)
+- FR-021 -> 共通仕様/機能仕様 7)
+- FR-022 -> 共通仕様/機能仕様 7)
+- FR-023 -> 共通仕様/機能仕様 7)
+- FR-024 -> 共通仕様/機能仕様 7)
+- NFR-001 -> 機能仕様 2)/5)
 - NFR-002 -> 制約
 - NFR-003 -> 制約
 - DR-001 -> データモデル/制約
 - DR-002 -> データモデル
 - DR-003 -> データモデル
 - DR-004 -> 機能仕様 3)
+- FR-025 -> 機能仕様 4)
 - DR-005 -> データモデル/制約
-- DR-006 -> 機能仕様 6)/インタフェース/Storage
+- DR-006 -> 機能仕様 7)/インタフェース/Storage
 - DR-007 -> データモデル/制約
 - OR-001 -> インタフェース/Storage
 - OR-002 -> インタフェース/Storage
