@@ -20,13 +20,19 @@ const providerBaseArgs = (provider: CliConfig["ai"]["provider"]): string[] => {
   }
 };
 
-const buildPrompt = (term: string, meaning: string, dictionaryName: string): string => {
+const buildPrompt = (
+  term: string,
+  meaning: string,
+  dictionaryName: string,
+  count: number,
+): string => {
+  const requested = `Return exactly ${count} concise example sentences.`;
   return [
     "You are generating example sentences for a language learner.",
     `Dictionary: ${dictionaryName}`,
     `Term: ${term}`,
     `Meaning: ${meaning}`,
-    "Return one or more concise example sentences.",
+    requested,
     "Output plain text, one sentence per line.",
   ].join("\n");
 };
@@ -35,11 +41,11 @@ const buildPrompt = (term: string, meaning: string, dictionaryName: string): str
  * Creates an example generator that calls an external CLI tool.
  */
 export const createCliExampleGenerator = (config: CliConfig): ExampleGenerator => {
-  return async ({ dictionaryName, term, meaning }) => {
+  return async ({ dictionaryName, term, meaning, count }) => {
     const command = providerCommand(config.ai.provider);
     const baseArgs = providerBaseArgs(config.ai.provider);
     const extraArgs = config.ai.args ?? [];
-    const prompt = buildPrompt(term, meaning, dictionaryName);
+    const prompt = buildPrompt(term, meaning, dictionaryName, count);
     try {
       const process = Bun.spawn({
         cmd: [command, ...baseArgs, ...extraArgs, prompt],
@@ -69,7 +75,13 @@ export const createCliExampleGenerator = (config: CliConfig): ExampleGenerator =
       if (examples.length === 0) {
         return Byethrow.fail({ kind: "ai-failed", reason: "No examples generated" });
       }
-      return Byethrow.succeed(examples);
+      if (typeof count === "number" && examples.length < count) {
+        return Byethrow.fail({
+          kind: "ai-failed",
+          reason: `Expected ${count} examples, got ${examples.length}`,
+        });
+      }
+      return Byethrow.succeed(typeof count === "number" ? examples.slice(0, count) : examples);
     } catch (error) {
       const reason = error instanceof Error ? error.message : "AI command failed";
       return Byethrow.fail({ kind: "ai-failed", reason });

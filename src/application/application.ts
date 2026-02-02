@@ -10,6 +10,7 @@ import {
 import { decrementScore, incrementScore, scoreToNumber } from "../core/score";
 import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
 import type { DictionaryName, Entry, Meaning, Term, VocabularyData } from "../core/types";
+import type { ExampleCount } from "../core/example-count";
 import {
   deleteEntry,
   listEntries as listCoreEntries,
@@ -32,6 +33,7 @@ export interface ExampleGenerator {
     dictionaryName: DictionaryName;
     term: Term;
     meaning: Meaning;
+    count: ExampleCount;
   }): Promise<Result<string[]>>;
 }
 
@@ -325,6 +327,7 @@ export const generateExamples = async (
   termInput: string,
   meaningInput: string,
   generator: ExampleGenerator,
+  count: ExampleCount,
 ): Promise<Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }>> => {
   const term = fromCore(parseTerm(termInput));
   if (Byethrow.isFailure(term)) {
@@ -346,6 +349,7 @@ export const generateExamples = async (
     dictionaryName: state.dictionaryName,
     term: term.value,
     meaning: meaning.value,
+    count,
   });
   if (Byethrow.isFailure(generated)) {
     return generated;

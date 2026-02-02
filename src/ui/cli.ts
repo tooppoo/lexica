@@ -4,6 +4,7 @@ import { parseArgs } from "util";
 import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
 import type { DictionaryName, Term } from "../core/types";
 import { defaultTestCount, parseTestCount, parseTestMode } from "../core/test-mode";
+import { defaultExampleCount, parseExampleCount } from "../core/example-count";
 import { FileVocabularyStorage } from "../application/storage";
 import {
   addEntryMeanings,
@@ -55,7 +56,7 @@ const printHelp = (): void => {
       "  dictionary clear -d <name>",
       "  add <term> <meaning[,meaning]>",
       "  remove <term> [meaning] -d <name>",
-      "  examples <term> generate",
+      "  examples <term> generate [--count <count>] (default: 3)",
       "  test meanings [count]",
       "  test examples [count]",
       "  ls [term]",
@@ -90,6 +91,7 @@ const parseGlobalOptions = (args: string[]): GlobalParseResult => {
         dictionary: { type: "string" },
         state: { type: "string" },
         config: { type: "string" },
+        count: { type: "string", short: "c" },
         help: { type: "boolean", short: "h" },
       },
       strict: true,
@@ -106,7 +108,13 @@ const parseGlobalOptions = (args: string[]): GlobalParseResult => {
     const dictionaryPath = values.dictionary ?? values.path ?? DEFAULT_DICTIONARY_PATH;
     const statePath = values.state ?? DEFAULT_STATE_PATH;
     const configPath = values.config ?? DEFAULT_CONFIG_PATH;
-    return { dictionaryPath, statePath, configPath, args: positionals } as const;
+    const passthrough = values.count ? ["--count", values.count] : [];
+    return {
+      dictionaryPath,
+      statePath,
+      configPath,
+      args: [...positionals, ...passthrough],
+    } as const;
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Invalid arguments",
@@ -350,10 +358,24 @@ const run = async (): Promise<void> => {
     const term = subcommand;
     const action = rest[0];
     if (!term || action !== "generate") {
-      printError({ kind: "invalid-input", reason: "Usage: examples <term> generate" });
+      printError({
+        kind: "invalid-input",
+        reason: "Usage: examples <term> generate [--count <count>]",
+      });
       process.exitCode = 1;
       return;
     }
+    const countArgs = rest.slice(1);
+    const countFlag = countArgs.some((arg) => arg === "-c" || arg === "--count");
+    const extracted = extractOption(countArgs, ["-c", "--count"]);
+    if (countFlag && !extracted.value) {
+      printError({ kind: "invalid-input", reason: "Missing example count" });
+      process.exitCode = 1;
+      return;
+    }
+    const count = extracted.value
+      ? ensureSuccess(parseExampleCount(extracted.value))
+      : defaultExampleCount();
     const config = ensureSuccess(await readCliConfig(configPath));
     const generator = createCliExampleGenerator(config);
     const currentEntry = listEntries(state, term);
@@ -374,7 +396,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const result = await generateExamples(state, term, meaning, generator);
+    const result = await generateExamples(state, term, meaning, generator, count);
     if (Byethrow.isFailure(result)) {
       printError(result.error);
       process.exitCode = 1;

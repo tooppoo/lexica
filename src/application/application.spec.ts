@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
 import { createEntry, parseMeaning, parseTerm } from "../core/entry";
 import { scoreToNumber } from "../core/score";
+import { defaultExampleCount } from "../core/example-count";
 import type { Result as CoreResult } from "../core/result";
 import {
   addEntry,
@@ -139,8 +140,12 @@ describe("application example generation", () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, "object", "物"));
     const generated = unwrap(
-      await generateExamples(added.state, "object", "物", async () =>
-        Byethrow.succeed(["example sentence"]),
+      await generateExamples(
+        added.state,
+        "object",
+        "物",
+        async () => Byethrow.succeed(["example sentence"]),
+        defaultExampleCount(),
       ),
     );
     expect(generated.entry.examples).toEqual(["example sentence"]);
@@ -149,8 +154,12 @@ describe("application example generation", () => {
   test("returns ai-failed when generator fails", async () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, "object", "物"));
-    const result = await generateExamples(added.state, "object", "物", async () =>
-      Byethrow.fail({ kind: "ai-failed", reason: "failure" }),
+    const result = await generateExamples(
+      added.state,
+      "object",
+      "物",
+      async () => Byethrow.fail({ kind: "ai-failed", reason: "failure" }),
+      defaultExampleCount(),
     );
     expectErrorKind(result, "ai-failed");
   });
