@@ -6,6 +6,7 @@ import { scoreToNumber } from "../core/score";
 import type { Result as CoreResult } from "../core/result";
 import {
   addEntry,
+  addEntryMeanings,
   clearDictionary,
   createState,
   generateExamples,
@@ -78,6 +79,15 @@ describe("application vocabulary operations", () => {
     expect(added.entry.term).toBe(unwrapCore(parseTerm("object")));
     const listed = unwrap(listEntries(added.state));
     expect(Array.isArray(listed.entries)).toBe(true);
+  });
+
+  test("adds multiple meanings at once", () => {
+    const state = createDefaultState();
+    const added = unwrap(addEntryMeanings(state, "object", ["物", "対象"]));
+    expect(added.entry.meanings).toEqual([
+      unwrapCore(parseMeaning("物")),
+      unwrapCore(parseMeaning("対象")),
+    ]);
   });
 
   test("lists single entry", () => {

@@ -169,8 +169,9 @@
 
 - `lexica add <term> <meaning>`
   - 現在の辞書に単語を登録する。
+  - meaning はカンマ区切りで複数指定できる（例: `物,対象`）。
   - 既存単語の場合は meaning を追記する。
-  - 入力: term, meaning
+  - 入力: term, meaning（カンマ区切りで複数可）
   - 出力: Entry（登録後の状態）
 - `lexica remove <term> [meaning] -d <name>`
   - meaning 指定時は指定の意味のみ削除する。

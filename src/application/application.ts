@@ -151,23 +151,40 @@ export const addEntry = (
   termInput: string,
   meaningInput: string,
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
+  return addEntryMeanings(state, termInput, [meaningInput]);
+};
+
+/**
+ * Adds a term with multiple meanings to the current dictionary.
+ */
+export const addEntryMeanings = (
+  state: AppState,
+  termInput: string,
+  meaningsInput: string[],
+): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
   const term = fromCore(parseTerm(termInput));
   if (Byethrow.isFailure(term)) {
     return term;
   }
-  const meaning = fromCore(parseMeaning(meaningInput));
-  if (Byethrow.isFailure(meaning)) {
-    return meaning;
+  const meanings = fromCore(parseMeanings(meaningsInput));
+  if (Byethrow.isFailure(meanings)) {
+    return meanings;
   }
-  const updated = fromCore(
-    upsertEntry(state.vocabulary, state.dictionaryName, term.value, meaning.value),
-  );
-  if (Byethrow.isFailure(updated)) {
-    return updated;
+
+  let vocabulary = state.vocabulary;
+  let entry: Entry | undefined;
+  for (const meaning of meanings.value) {
+    const updated = fromCore(upsertEntry(vocabulary, state.dictionaryName, term.value, meaning));
+    if (Byethrow.isFailure(updated)) {
+      return updated;
+    }
+    vocabulary = updated.value.vocabulary;
+    entry = updated.value.entry;
   }
+
   return succeed({
-    state: { ...state, vocabulary: updated.value.vocabulary },
-    entry: updated.value.entry,
+    state: { ...state, vocabulary },
+    entry: entry ?? createEntry(term.value, meanings.value),
     dictionaryName: state.dictionaryName,
   });
 };

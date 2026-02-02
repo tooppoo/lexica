@@ -37,6 +37,7 @@ npm i -g @philomagi/lexica
 lexica dictionary switch tech
 lexica add dog 犬
 lexica add dog いぬ
+lexica add object 物,対象
 lexica ls dog
 lexica remove dog いぬ -d tech
 lexica dictionary clear -d tech

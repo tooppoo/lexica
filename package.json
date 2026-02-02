@@ -1,7 +1,14 @@
 {
   "name": "@philomagi/lexica",
   "version": "0.0.3",
+  "homepage": "https://github.com/tooppoo/lexica",
+  "bugs": {
+    "url": "https://github.com/tooppoo/lexica",
+    "email": "tooppoo56@gmail.com"
+  },
   "license": "MIT",
+  "author": "philomagi <tooppoo56@gmail.com>",
+  "repository": "https://github.com/tooppoo/lexica",
   "bin": {
     "lexica": "bin/lexica"
   },
@@ -9,13 +16,6 @@
     "LICENSE",
     "bin/lexica"
   ],
-  "homepage": "https://github.com/tooppoo/lexica",
-  "repository": "https://github.com/tooppoo/lexica",
-  "bugs": {
-    "email": "tooppoo56@gmail.com",
-    "url": "https://github.com/tooppoo/lexica"
-  },
-  "author": "philomagi <tooppoo56@gmail.com>",
   "type": "module",
   "module": "index.ts",
   "publishConfig": {

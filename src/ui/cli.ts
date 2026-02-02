@@ -6,7 +6,7 @@ import type { DictionaryName, Term } from "../core/types";
 import { defaultTestCount, parseTestCount, parseTestMode } from "../core/test-mode";
 import { FileVocabularyStorage } from "../application/storage";
 import {
-  addEntry,
+  addEntryMeanings,
   clearDictionary,
   createState,
   generateExamples,
@@ -53,7 +53,7 @@ const printHelp = (): void => {
       "Commands:",
       "  dictionary switch <name>",
       "  dictionary clear -d <name>",
-      "  add <term> <meaning>",
+      "  add <term> <meaning[,meaning]>",
       "  remove <term> [meaning] -d <name>",
       "  examples <term> generate",
       "  test meanings [count]",
@@ -68,6 +68,8 @@ const printHelp = (): void => {
     ].join("\n"),
   );
 };
+
+const splitMeanings = (input: string): string[] => input.split(",");
 
 type CliError = AppError | { kind: "file-io"; reason: string };
 type CliResult<T> = Byethrow.Result<T, CliError>;
@@ -249,7 +251,8 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const result = addEntry(state, term, meaning);
+    const meanings = splitMeanings(meaning);
+    const result = addEntryMeanings(state, term, meanings);
     if (Byethrow.isFailure(result)) {
       printError(result.error);
       process.exitCode = 1;
