@@ -1,5 +1,11 @@
 # @philomagi/lexica
 
+## 0.0.5
+
+### Patch Changes
+
+- c2c951d: support adding example manually
+
 ## 0.0.4
 
 ### Patch Changes
