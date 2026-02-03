@@ -1,5 +1,11 @@
 # @philomagi/lexica
 
+## 0.0.6
+
+### Patch Changes
+
+- 1268b90: store language state
+
 ## 0.0.5
 
 ### Patch Changes
