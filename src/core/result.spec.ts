@@ -1,6 +1,13 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
-import { failInvalidInput, failNotFound, isFailure, isSuccess, succeed } from "./result";
+import {
+  failConflict,
+  failInvalidInput,
+  failNotFound,
+  isFailure,
+  isSuccess,
+  succeed,
+} from "./result";
 
 describe("core result helpers", () => {
   test("succeed wraps value", () => {
@@ -28,6 +35,16 @@ describe("core result helpers", () => {
     expect(Byethrow.isFailure(result)).toBe(true);
     if (Byethrow.isFailure(result)) {
       expect(result.error).toEqual({ kind: "not-found", reason: "missing" });
+    }
+    expect(isSuccess(result)).toBe(false);
+    expect(isFailure(result)).toBe(true);
+  });
+
+  test("failConflict creates failure", () => {
+    const result = failConflict("duplicate");
+    expect(Byethrow.isFailure(result)).toBe(true);
+    if (Byethrow.isFailure(result)) {
+      expect(result.error).toEqual({ kind: "conflict", reason: "duplicate" });
     }
     expect(isSuccess(result)).toBe(false);
     expect(isFailure(result)).toBe(true);

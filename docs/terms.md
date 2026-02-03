@@ -4,9 +4,10 @@
 
 | 語彙       | 出典                                                | 確定していること / 不明点                                                  |
 | ---------- | --------------------------------------------------- | -------------------------------------------------------------------------- |
-| 語彙データ | docs/request.md, docs/requirement.md, docs/specs.md | 辞書名ごとに Entry の配列を持つJSONデータ。                                |
+| 語彙データ | docs/request.md, docs/requirement.md, docs/specs.md | 辞書メタ情報と辞書ごとの Entry 配列を持つJSONデータ。                      |
 | Entry      | docs/specs.md                                       | term/meanings/examples を持つ。dictionary は保持せず辞書名から導出される。 |
-| Dictionary | docs/specs.md                                       | 辞書名で表現される。不明: 辞書切り替え時の永続化方法。                     |
+| Dictionary | docs/specs.md                                       | 辞書名・language を持つ。                                                  |
+| Language   | docs/specs.md                                       | source/target を持つ。                                                     |
 
 ## Values
 

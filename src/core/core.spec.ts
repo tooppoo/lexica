@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { Result as Byethrow } from "@praha/byethrow";
 import type { Result as CoreResult } from "./result";
 import type { Dictionary, DictionaryName, Meaning, Term, VocabularyData } from "./types";
-import { parseDictionary, parseDictionaryName, toDictionaryName } from "./dictionary";
+import {
+  parseDictionary,
+  parseDictionaryName,
+  parseSourceLanguage,
+  parseTargetLanguage,
+  toDictionaryName,
+} from "./dictionary";
 import {
   appendExample,
   createEntry,
@@ -21,7 +27,10 @@ const unwrap = <T>(result: CoreResult<T>): T => {
   return result.value;
 };
 
-const expectErrorKind = <T>(result: CoreResult<T>, kind: "invalid-input" | "not-found") => {
+const expectErrorKind = <T>(
+  result: CoreResult<T>,
+  kind: "invalid-input" | "not-found" | "conflict",
+) => {
   expect(Byethrow.isFailure(result)).toBe(true);
   if (Byethrow.isFailure(result)) {
     expect(result.error.kind).toBe(kind);
@@ -30,13 +39,19 @@ const expectErrorKind = <T>(result: CoreResult<T>, kind: "invalid-input" | "not-
 
 describe("dictionary parsing", () => {
   test("parses supported dictionary", () => {
-    const result = parseDictionary("tech");
+    const result = parseDictionary("tech", { source: "english", target: "japanese" });
     const dictionary = unwrap(result);
-    expect(dictionary).toEqual({ name: unwrap(parseDictionaryName("tech")) });
+    expect(dictionary).toEqual({
+      name: unwrap(parseDictionaryName("tech")),
+      language: {
+        source: unwrap(parseSourceLanguage("english")),
+        target: unwrap(parseTargetLanguage("japanese")),
+      },
+    });
   });
 
   test("rejects empty dictionary name", () => {
-    const result = parseDictionary("  ");
+    const result = parseDictionary("  ", { source: "english", target: "japanese" });
     expectErrorKind(result, "invalid-input");
   });
 
@@ -51,8 +66,18 @@ describe("dictionary parsing", () => {
   });
 
   test("derives dictionary name from dictionary", () => {
-    const dictionary = unwrap(parseDictionary("tech"));
+    const dictionary = unwrap(parseDictionary("tech", { source: "english", target: "japanese" }));
     expect(toDictionaryName(dictionary)).toBe(unwrap(parseDictionaryName("tech")));
+  });
+
+  test("rejects empty source language", () => {
+    const result = parseDictionary("tech", { source: " ", target: "japanese" });
+    expectErrorKind(result, "invalid-input");
+  });
+
+  test("rejects empty target language", () => {
+    const result = parseDictionary("tech", { source: "english", target: "  " });
+    expectErrorKind(result, "invalid-input");
   });
 });
 
@@ -126,7 +151,8 @@ describe("entry creation and example overwrite", () => {
 });
 
 describe("vocabulary operations", () => {
-  const makeDictionary = (): Dictionary => unwrap(parseDictionary("tech"));
+  const makeDictionary = (): Dictionary =>
+    unwrap(parseDictionary("tech", { source: "english", target: "japanese" }));
   const makeDictionaryName = (): DictionaryName => toDictionaryName(makeDictionary());
   const makeTerm = (value: string): Term => unwrap(parseTerm(value));
   const makeMeaning = (value: string): Meaning => unwrap(parseMeaning(value));
@@ -150,13 +176,13 @@ describe("vocabulary operations", () => {
   });
 
   test("separates same term across dictionaries", () => {
-    const primary = unwrap(parseDictionary("tech"));
+    const primary = unwrap(parseDictionary("tech", { source: "english", target: "japanese" }));
     const primaryName = toDictionaryName(primary);
     const vocabulary = unwrap(
       upsertEntry({}, primaryName, makeTerm("object"), makeMeaning("物")),
     ).vocabulary;
 
-    const secondary = unwrap(parseDictionary("travel"));
+    const secondary = unwrap(parseDictionary("travel", { source: "english", target: "japanese" }));
     const secondaryName = toDictionaryName(secondary);
     const result = upsertEntry(vocabulary, secondaryName, makeTerm("object"), makeMeaning("対象"));
     const { entry } = unwrap(result);

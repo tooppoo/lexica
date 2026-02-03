@@ -3,7 +3,7 @@
 ## UI
 
 - CLI
-  - コマンド: `lexica dictionary switch`, `lexica dictionary clear`, `lexica add`, `lexica remove`, `lexica ls`
+  - コマンド: `lexica dictionary new`, `lexica dictionary switch`, `lexica dictionary clear`, `lexica add`, `lexica remove`, `lexica ls`
   - 入力: term / meaning / dictionary（name）
   - 出力: Success / Error + 現在選択中の辞書
 - 破壊的操作は辞書指定必須（入力不正）
@@ -13,6 +13,7 @@
 - Operation
   - UpsertEntry / ListEntries / GenerateExamples / ReplaceEntry / DeleteEntry
 - 辞書切り替え / 辞書全削除
+- 辞書登録（language: source/target）
 - Response
   - Success / Error と現在選択中の辞書
 - Storage
@@ -29,7 +30,7 @@
 - 制約
   - Entry の一意性
   - 空文字不可 / meanings 要素数1以上
-  - 競合はエラーとしない
+  - 単語登録の競合はエラーとしない
 
 ## 依存方向
 

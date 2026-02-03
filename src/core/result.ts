@@ -2,7 +2,8 @@ import { Result as Byethrow } from "@praha/byethrow";
 
 export type CoreError =
   | { kind: "invalid-input"; reason: string }
-  | { kind: "not-found"; reason: string };
+  | { kind: "not-found"; reason: string }
+  | { kind: "conflict"; reason: string };
 
 export type Result<T> = Byethrow.Result<T, CoreError>;
 
@@ -25,6 +26,13 @@ export const failInvalidInput = (reason: string): Result<never> => {
  */
 export const failNotFound = (reason: string): Result<never> => {
   return { type: "Failure", error: { kind: "not-found", reason } };
+};
+
+/**
+ * Creates a conflict failure Result.
+ */
+export const failConflict = (reason: string): Result<never> => {
+  return { type: "Failure", error: { kind: "conflict", reason } };
 };
 
 /**

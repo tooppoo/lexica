@@ -1,8 +1,9 @@
 import * as v from "valibot";
-import type { Dictionary, DictionaryName } from "./types";
+import type { Dictionary, DictionaryName, Language, SourceLanguage, TargetLanguage } from "./types";
 import { failInvalidInput, succeed, type Result } from "./result";
 
 const dictionaryNameSchema = v.pipe(v.string(), v.trim(), v.minLength(1));
+const languageLabelSchema = v.pipe(v.string(), v.trim(), v.minLength(1));
 
 /**
  * Parses a dictionary name.
@@ -16,14 +17,54 @@ export const parseDictionaryName = (name: string): Result<DictionaryName> => {
 };
 
 /**
- * Parses a dictionary name into a Dictionary.
+ * Parses a source language label.
  */
-export const parseDictionary = (name: string): Result<Dictionary> => {
-  const parsed = parseDictionaryName(name);
-  if (parsed.type === "Failure") {
-    return parsed;
+export const parseSourceLanguage = (input: string): Result<SourceLanguage> => {
+  const parsed = v.safeParse(languageLabelSchema, input);
+  if (!parsed.success) {
+    return failInvalidInput("Invalid source language");
   }
-  return succeed({ name: parsed.value });
+  return succeed(parsed.output as SourceLanguage);
+};
+
+/**
+ * Parses a target language label.
+ */
+export const parseTargetLanguage = (input: string): Result<TargetLanguage> => {
+  const parsed = v.safeParse(languageLabelSchema, input);
+  if (!parsed.success) {
+    return failInvalidInput("Invalid target language");
+  }
+  return succeed(parsed.output as TargetLanguage);
+};
+
+/**
+ * Parses dictionary metadata from name/source/target inputs.
+ */
+export const parseDictionary = (
+  name: string,
+  languageInput: { source: string; target: string },
+): Result<Dictionary> => {
+  const parsedName = parseDictionaryName(name);
+  if (parsedName.type === "Failure") {
+    return parsedName;
+  }
+  const parsedSource = parseSourceLanguage(languageInput.source);
+  if (parsedSource.type === "Failure") {
+    return parsedSource;
+  }
+  const parsedTarget = parseTargetLanguage(languageInput.target);
+  if (parsedTarget.type === "Failure") {
+    return parsedTarget;
+  }
+  const language: Language = {
+    source: parsedSource.value,
+    target: parsedTarget.value,
+  };
+  return succeed({
+    name: parsedName.value,
+    language,
+  });
 };
 
 /**

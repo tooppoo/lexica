@@ -10,8 +10,17 @@ import {
   parseTerm,
 } from "../core/entry";
 import { decrementScore, incrementScore, scoreToNumber } from "../core/score";
-import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
-import type { DictionaryName, Entry, Meaning, Term, VocabularyData } from "../core/types";
+import { parseDictionary, parseDictionaryName } from "../core/dictionary";
+import type {
+  Dictionary,
+  DictionaryCatalog,
+  DictionaryName,
+  Entry,
+  Language,
+  Meaning,
+  Term,
+  VocabularyData,
+} from "../core/types";
 import type { ExampleCount } from "../core/example-count";
 import {
   deleteEntry,
@@ -20,6 +29,7 @@ import {
   upsertEntry,
 } from "../core/vocabulary";
 import type { CoreError, Result as CoreResult } from "../core/result";
+import { failConflict } from "../core/result";
 
 export type AppError = CoreError | { kind: "ai-failed"; reason: string };
 
@@ -27,12 +37,14 @@ export type Result<T> = Byethrow.Result<T, AppError>;
 
 export interface AppState {
   dictionaryName: DictionaryName;
+  dictionaries: DictionaryCatalog;
   vocabulary: VocabularyData;
 }
 
 export interface ExampleGenerator {
   (input: {
     dictionaryName: DictionaryName;
+    language: Language;
     term: Term;
     meaning: Meaning;
     count: ExampleCount;
@@ -95,19 +107,29 @@ const fromCore = <T>(result: CoreResult<T>): Result<T> => {
 };
 
 const succeed = <T>(value: T): Result<T> => ({ type: "Success", value });
-const failNotFound = (reason: string): Result<never> => ({
+const failNotFoundApp = (reason: string): Result<never> => ({
   type: "Failure",
   error: { kind: "not-found", reason },
 });
+
+const ensureDictionary = (state: AppState, dictionaryName: DictionaryName): Result<Dictionary> => {
+  const dictionary = state.dictionaries[dictionaryName];
+  if (!dictionary) {
+    return failNotFoundApp("Dictionary not found");
+  }
+  return succeed(dictionary);
+};
 
 /**
  * Creates an application state from a dictionary name and vocabulary data.
  */
 export const createState = (
   dictionaryName: DictionaryName,
+  dictionaries: DictionaryCatalog,
   vocabulary: VocabularyData,
 ): AppState => ({
   dictionaryName,
+  dictionaries,
   vocabulary,
 });
 
@@ -118,14 +140,42 @@ export const switchDictionary = (
   state: AppState,
   name: string,
 ): Result<{ state: AppState; dictionaryName: DictionaryName }> => {
-  const parsed = fromCore(parseDictionary(name));
-  if (Byethrow.isFailure(parsed)) {
-    return parsed;
+  const parsedName = fromCore(parseDictionaryName(name));
+  if (Byethrow.isFailure(parsedName)) {
+    return parsedName;
   }
-  const dictionaryName = toDictionaryName(parsed.value);
+  const dictionaryName = parsedName.value;
+  const exists = state.dictionaries[dictionaryName];
+  if (!exists) {
+    return failNotFoundApp("Dictionary not found");
+  }
   return succeed({
     state: { ...state, dictionaryName },
     dictionaryName,
+  });
+};
+
+/**
+ * Registers a new dictionary with a language (source/target).
+ */
+export const createDictionary = (
+  state: AppState,
+  nameInput: string,
+  languageInput: { source: string; target: string },
+): Result<{ state: AppState; dictionary: Dictionary }> => {
+  const parsed = fromCore(parseDictionary(nameInput, languageInput));
+  if (Byethrow.isFailure(parsed)) {
+    return parsed;
+  }
+  const dictionary = parsed.value;
+  if (state.dictionaries[dictionary.name]) {
+    return fromCore(failConflict("Dictionary already exists"));
+  }
+  const dictionaries = { ...state.dictionaries, [dictionary.name]: dictionary };
+  const vocabulary = { ...state.vocabulary, [dictionary.name]: [] };
+  return succeed({
+    state: { ...state, dictionaries, vocabulary },
+    dictionary,
   });
 };
 
@@ -139,6 +189,10 @@ export const clearDictionary = (
   const dictionaryName = fromCore(parseDictionaryName(dictionaryNameInput));
   if (Byethrow.isFailure(dictionaryName)) {
     return dictionaryName;
+  }
+  const exists = state.dictionaries[dictionaryName.value];
+  if (!exists) {
+    return failNotFoundApp("Dictionary not found");
   }
   const vocabulary = { ...state.vocabulary, [dictionaryName.value]: [] };
   return succeed({
@@ -291,7 +345,7 @@ export const removeEntry = (
 
   const filtered = currentEntry.value.meanings.filter((item) => item !== meaning.value);
   if (filtered.length === currentEntry.value.meanings.length) {
-    return failNotFound("Meaning not found");
+    return failNotFoundApp("Meaning not found");
   }
 
   if (filtered.length === 0) {
@@ -380,9 +434,14 @@ export const generateExamples = async (
   if (Byethrow.isFailure(currentEntry)) {
     return currentEntry;
   }
+  const dictionary = ensureDictionary(state, state.dictionaryName);
+  if (Byethrow.isFailure(dictionary)) {
+    return dictionary;
+  }
 
   const generated = await generator({
     dictionaryName: state.dictionaryName,
+    language: dictionary.value.language,
     term: term.value,
     meaning: meaning.value,
     count,
@@ -408,6 +467,10 @@ const selectTestEntry = (
   strategy: TestSelectionStrategy,
   rng: () => number,
 ): Result<TestSelection | null> => {
+  const dictionary = ensureDictionary(state, state.dictionaryName);
+  if (Byethrow.isFailure(dictionary)) {
+    return dictionary;
+  }
   const entries = fromCore(listCoreEntries(state.vocabulary, state.dictionaryName));
   if (Byethrow.isFailure(entries)) {
     return entries;

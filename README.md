@@ -10,12 +10,12 @@ npm i -g @philomagi/lexica
 
 ## コマンド一覧
 
-サポート辞書は英→日/日→英。
-
 ### 辞書操作
 
+- `lexica dictionary new <name> --source=<source> --target=<target>`
+  - 辞書を登録し、language（source/target）を設定する
 - `lexica dictionary switch <name>`
-  - 現在の辞書を切り替える（未登録の場合は作成）
+  - 現在の辞書を切り替える（未登録はエラー）
 - `lexica dictionary clear -d <name>`
   - 指定辞書の全削除
 
@@ -34,6 +34,7 @@ npm i -g @philomagi/lexica
 ### 例
 
 ```bash
+lexica dictionary new 英和 --source=english --target=japanese
 lexica dictionary switch tech
 lexica add dog 犬
 lexica add dog いぬ

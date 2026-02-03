@@ -1,6 +1,7 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import * as v from "valibot";
-import type { Entry, VocabularyData } from "../core/types";
+import type { DictionaryName, Entry, Language, VocabularyData } from "../core/types";
+import { parseDictionaryName, parseSourceLanguage, parseTargetLanguage } from "../core/dictionary";
 import { createEntry, parseMeanings, parseTerm } from "../core/entry";
 import { defaultScore, parseScore } from "../core/score";
 
@@ -11,9 +12,9 @@ export type ResultAsync<T> = Promise<Result<T>>;
 
 export interface VocabularyStorage {
   /** Loads vocabulary data from the given path. */
-  load(path: string): ResultAsync<VocabularyData>;
+  load(path: string): ResultAsync<VocabularyStore>;
   /** Saves vocabulary data to the given path. */
-  save(path: string, data: VocabularyData): ResultAsync<void>;
+  save(path: string, data: VocabularyStore): ResultAsync<void>;
 }
 
 const succeed = <T>(value: T): Result<T> => ({ type: "Success", value });
@@ -29,15 +30,38 @@ const entrySchema = v.object({
   score: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
 });
 
-const vocabularySchema = v.record(v.string(), v.array(entrySchema));
+const languageSchema = v.object({
+  source: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  target: v.pipe(v.string(), v.trim(), v.minLength(1)),
+});
+const dictionarySchema = v.object({
+  language: languageSchema,
+  entries: v.array(entrySchema),
+});
+const dictionaryCatalogSchema = v.record(v.string(), dictionarySchema);
+const storeSchema = v.object({
+  dictionaries: dictionaryCatalogSchema,
+});
 
-const parseVocabularyData = (input: unknown): Result<VocabularyData> => {
-  const parsed = v.safeParse(vocabularySchema, input);
-  if (!parsed.success) {
-    return fail("Invalid vocabulary data format");
-  }
+export interface VocabularyStore {
+  dictionaries: Partial<Record<DictionaryName, StoredDictionary>>;
+}
+
+export interface StoredDictionary {
+  language: Language;
+  entries: Entry[];
+}
+
+type RawEntry = {
+  term: string;
+  meanings: string[];
+  examples?: string[];
+  score?: number;
+};
+
+const parseVocabularyEntries = (input: Record<string, RawEntry[]>): Result<VocabularyData> => {
   const normalized: VocabularyData = {};
-  for (const [dictionaryName, entries] of Object.entries(parsed.output)) {
+  for (const [dictionaryName, entries] of Object.entries(input)) {
     const nextEntries: Entry[] = [];
     for (const entry of entries) {
       const term = parseTerm(entry.term);
@@ -59,28 +83,81 @@ const parseVocabularyData = (input: unknown): Result<VocabularyData> => {
   return succeed(normalized);
 };
 
+const parseDictionaryCatalog = (
+  input: Record<string, { language: { source: string; target: string }; entries: RawEntry[] }>,
+): Result<VocabularyStore> => {
+  const dictionaries: Partial<Record<DictionaryName, StoredDictionary>> = {};
+  for (const [dictionaryName, dictionary] of Object.entries(input)) {
+    const name = parseDictionaryName(dictionaryName);
+    if (Byethrow.isFailure(name)) {
+      return fail("Invalid dictionary name");
+    }
+    const source = parseSourceLanguage(dictionary.language.source);
+    if (Byethrow.isFailure(source)) {
+      return fail("Invalid source language");
+    }
+    const target = parseTargetLanguage(dictionary.language.target);
+    if (Byethrow.isFailure(target)) {
+      return fail("Invalid target language");
+    }
+    const entries = parseVocabularyEntries({ [dictionaryName]: dictionary.entries });
+    if (Byethrow.isFailure(entries)) {
+      return entries;
+    }
+    dictionaries[name.value] = {
+      language: { source: source.value, target: target.value },
+      entries: entries.value[name.value] ?? [],
+    };
+  }
+  return succeed({ dictionaries });
+};
+
+const parseVocabularyStore = (input: unknown): Result<VocabularyStore> => {
+  const parsedStore = v.safeParse(storeSchema, input);
+  if (parsedStore.success) {
+    const dictionaries = parseDictionaryCatalog(parsedStore.output.dictionaries);
+    if (Byethrow.isFailure(dictionaries)) {
+      return dictionaries;
+    }
+    return succeed(dictionaries.value);
+  }
+
+  return fail("Invalid vocabulary data format");
+};
+
 /**
  * File-backed storage implementation using Bun.file and JSON.
  */
 export class FileVocabularyStorage implements VocabularyStorage {
   /** Loads vocabulary data from the given JSON file path. */
-  async load(path: string): Promise<Result<VocabularyData>> {
+  async load(path: string): Promise<Result<VocabularyStore>> {
     try {
       const file = Bun.file(path);
       if (!(await file.exists())) {
-        return succeed({});
+        return succeed({ dictionaries: {} });
       }
       const content = JSON.parse(await file.text());
-      return parseVocabularyData(content);
+      return parseVocabularyStore(content);
     } catch (error) {
       return fail(error instanceof Error ? error.message : "Failed to read file");
     }
   }
 
   /** Saves vocabulary data to the given JSON file path. */
-  async save(path: string, data: VocabularyData): Promise<Result<void>> {
+  async save(path: string, data: VocabularyStore): Promise<Result<void>> {
     try {
-      const json = JSON.stringify(data, null, 2);
+      const dictionariesWithEntries = Object.fromEntries(
+        Object.entries(data.dictionaries).map(([name, dictionary]) => [
+          name,
+          dictionary
+            ? {
+                language: dictionary.language,
+                entries: dictionary.entries ?? [],
+              }
+            : dictionary,
+        ]),
+      );
+      const json = JSON.stringify({ dictionaries: dictionariesWithEntries }, null, 2);
       await Bun.write(path, json);
       return succeed(undefined);
     } catch (error) {
@@ -93,15 +170,15 @@ export class FileVocabularyStorage implements VocabularyStorage {
  * In-memory storage implementation for tests.
  */
 export class MemoryVocabularyStorage implements VocabularyStorage {
-  #store = new Map<string, VocabularyData>();
+  #store = new Map<string, VocabularyStore>();
 
   /** Loads vocabulary data for the given key. */
-  async load(path: string): Promise<Result<VocabularyData>> {
-    return succeed(this.#store.get(path) ?? {});
+  async load(path: string): Promise<Result<VocabularyStore>> {
+    return succeed(this.#store.get(path) ?? { dictionaries: {} });
   }
 
   /** Saves vocabulary data for the given key. */
-  async save(path: string, data: VocabularyData): Promise<Result<void>> {
+  async save(path: string, data: VocabularyStore): Promise<Result<void>> {
     this.#store.set(path, data);
     return succeed(undefined);
   }

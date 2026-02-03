@@ -1,6 +1,6 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
-import { parseDictionary, parseDictionaryName, toDictionaryName } from "../core/dictionary";
+import { parseDictionary, parseDictionaryName } from "../core/dictionary";
 import { createEntry, parseMeaning, parseTerm } from "../core/entry";
 import { scoreToNumber } from "../core/score";
 import { defaultExampleCount } from "../core/example-count";
@@ -10,6 +10,7 @@ import {
   addEntryExample,
   addEntryMeanings,
   clearDictionary,
+  createDictionary,
   createState,
   generateExamples,
   listEntries,
@@ -45,13 +46,28 @@ const expectErrorKind = <T>(result: Result<T>, kind: AppError["kind"]): void => 
 };
 
 const createDefaultState = () => {
-  const dictionary = unwrapCore(parseDictionary("default"));
-  return createState(toDictionaryName(dictionary), {});
+  const dictionary = unwrapCore(
+    parseDictionary("default", { source: "english", target: "japanese" }),
+  );
+  const dictionaries = { [dictionary.name]: dictionary };
+  return createState(dictionary.name, dictionaries, {});
 };
 
 describe("application dictionary operations", () => {
   test("switches dictionary", () => {
-    const state = createDefaultState();
+    const state = (() => {
+      const primary = unwrapCore(
+        parseDictionary("default", { source: "english", target: "japanese" }),
+      );
+      const secondary = unwrapCore(
+        parseDictionary("tech", { source: "english", target: "japanese" }),
+      );
+      return createState(
+        primary.name,
+        { [primary.name]: primary, [secondary.name]: secondary },
+        {},
+      );
+    })();
     const switched = unwrap(switchDictionary(state, "tech"));
     expect(switched.dictionaryName).toBe(unwrapCore(parseDictionaryName("tech")));
   });
@@ -60,6 +76,30 @@ describe("application dictionary operations", () => {
     const state = createDefaultState();
     const result = switchDictionary(state, " ");
     expectErrorKind(result, "invalid-input");
+  });
+
+  test("rejects switching to missing dictionary", () => {
+    const state = createDefaultState();
+    const result = switchDictionary(state, "missing");
+    expectErrorKind(result, "not-found");
+  });
+
+  test("creates dictionary with source and target", () => {
+    const state = createDefaultState();
+    const created = unwrap(
+      createDictionary(state, "travel", { source: "english", target: "japanese" }),
+    );
+    expect(created.dictionary.name).toBe(unwrapCore(parseDictionaryName("travel")));
+    expect(created.state.vocabulary[created.dictionary.name]).toEqual([]);
+  });
+
+  test("rejects duplicate dictionary creation", () => {
+    const state = createDefaultState();
+    const result = createDictionary(state, "default", {
+      source: "english",
+      target: "japanese",
+    });
+    expectErrorKind(result, "conflict");
   });
 
   test("clears dictionary", () => {
@@ -152,11 +192,12 @@ describe("application example generation", () => {
         added.state,
         "object",
         "物",
-        async () => Byethrow.succeed(["example sentence"]),
+        async ({ language }) =>
+          Byethrow.succeed([`example sentence (${language.source} to ${language.target})`]),
         defaultExampleCount(),
       ),
     );
-    expect(generated.entry.examples).toEqual(["example sentence"]);
+    expect(generated.entry.examples).toEqual(["example sentence (english to japanese)"]);
   });
 
   test("returns ai-failed when generator fails", async () => {

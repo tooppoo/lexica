@@ -3,13 +3,16 @@
 ## エンティティ
 
 - 語彙データ
-  - 辞書キーごとに Entry の配列を持つJSONデータ。
+  - 辞書メタ情報と、辞書ごとの Entry 配列を持つJSONデータ。
   - 正データ。
 - Entry
   - term / meanings / examples を持つ（examples は任意）。
   - (dictionaryName, term) の組で一意。
 - Dictionary
-  - 辞書名で表現される。
+  - 辞書名・language を持つ。
+  - Entry 配列を持つ。
+- Language
+  - source/target を持つ。
 - DictionaryName
   - 辞書名。
 
@@ -25,6 +28,7 @@
 ## 関係
 
 - 語彙データ 1 --- \* Entry（辞書名単位）
+- 語彙データ 1 --- \* Dictionary
 - Dictionary 1 --- \* Entry（辞書名から導出）
 - Entry 0 --- \* 例文
 - 例文はAIによって作成される

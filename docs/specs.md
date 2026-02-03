@@ -4,7 +4,7 @@
 
 # 用語
 
-- 語彙データ: 辞書名ごとに Entry の配列を持つJSONデータである。
+- 語彙データ: 辞書メタ情報と、辞書ごとの Entry 配列を持つJSONデータである。
 - 辞書: 辞書名で識別される語彙のまとまりである。表現はオブジェクトである。
 - 辞書名: 辞書を識別する文字列である。
 - 生成物: AIによって作成される例文である。
@@ -16,7 +16,7 @@
 ## エンティティ
 
 - 語彙データ
-  - dictionaryName: Entry[] のマップ（トップレベル）
+  - dictionaries: Dictionary のマップ
 - Entry
   - term: string（必須、空文字不可）
   - meanings: string[]（必須、要素数は1以上）
@@ -24,6 +24,11 @@
   - score: number（必須、0以上の整数）
 - Dictionary
   - name: string（必須）
+  - language: Language（必須）
+  - entries: Entry[]（必須）
+- Language
+  - source: string（必須）
+  - target: string（必須）
 - DictionaryName
   - 辞書名
 
@@ -66,6 +71,7 @@
 - 副作用: 生成物の保存（既存例文は上書き）
 - エラー: 入力不正、参照不能、ファイルI/O、AI連携失敗
 - 例: term="object", meaning="対象" に対する例文生成
+- 備考: language.source/target をプロンプトに明示的に含める。
 - Covers: FR-003, FR-006, DR-004, C-001
 
 ## 4) 例文の手動追加
@@ -151,7 +157,8 @@
 ## Storage
 
 - 語彙データはユーザーが指定した任意パスにJSONとして保存される。
-- JSONのトップレベルは dictionaryName をキーとする Entry[] のマップである。
+- JSONのトップレベルは dictionaries を持つオブジェクトである。
+- dictionaries は dictionaryName をキーとし、language（source/target）と entries を保持する。
 - Gitリポジトリであることを前提としない。
 - score は語彙データ内の Entry に保存される。
 
@@ -167,8 +174,12 @@
 
 ### 辞書操作
 
+- `lexica dictionary new <name> --source=<source> --target=<target>`
+  - 辞書を登録する。name が既存の場合は競合エラー。
+  - 入力: name, language(source/target)
+  - 出力: 辞書メタ情報と登録結果
 - `lexica dictionary switch <name>`
-  - 現在の辞書を切り替える。未登録の辞書は新規作成する。
+  - 現在の辞書を切り替える。未登録の辞書は NotFound とする。
   - 入力: name
   - 出力: 現在選択中の辞書と切替結果
 - `lexica dictionary clear -d <name>`
@@ -216,7 +227,8 @@
 - 参照不能: 指定 Entry が存在しない。
 - ファイルI/O: 読み書き失敗、権限不足、パス不正。
 - AI連携失敗: AIサービス呼び出し失敗、応答不正。
-- 競合はエラーとしない。既存単語が指定された場合は意味を追記する。
+- 競合: 既存辞書名の重複。
+- 単語登録の競合はエラーとせず、既存単語が指定された場合は意味を追記する。
 
 # 制約
 

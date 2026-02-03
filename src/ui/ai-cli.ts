@@ -24,12 +24,15 @@ const buildPrompt = (
   term: string,
   meaning: string,
   dictionaryName: string,
+  language: { source: string; target: string },
   count: number,
 ): string => {
   const requested = `Return exactly ${count} concise example sentences.`;
   return [
     "You are generating example sentences for a language learner.",
     `Dictionary: ${dictionaryName}`,
+    `Source Language: ${language.source}`,
+    `Target Language: ${language.target}`,
     `Term: ${term}`,
     `Meaning: ${meaning}`,
     requested,
@@ -41,11 +44,11 @@ const buildPrompt = (
  * Creates an example generator that calls an external CLI tool.
  */
 export const createCliExampleGenerator = (config: CliConfig): ExampleGenerator => {
-  return async ({ dictionaryName, term, meaning, count }) => {
+  return async ({ dictionaryName, language, term, meaning, count }) => {
     const command = providerCommand(config.ai.provider);
     const baseArgs = providerBaseArgs(config.ai.provider);
     const extraArgs = config.ai.args ?? [];
-    const prompt = buildPrompt(term, meaning, dictionaryName, count);
+    const prompt = buildPrompt(term, meaning, dictionaryName, language, count);
     try {
       const process = Bun.spawn({
         cmd: [command, ...baseArgs, ...extraArgs, prompt],
