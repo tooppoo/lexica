@@ -36,6 +36,7 @@ const buildPrompt = (
     `Term: ${term}`,
     `Meaning: ${meaning}`,
     requested,
+    "Do not include translations.",
     "Output plain text, one sentence per line.",
   ].join("\n");
 };
