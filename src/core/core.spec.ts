@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Result as Byethrow } from "@praha/byethrow";
-import { unwrap, type Result } from "./result";
+import { unwrap } from "./result";
 import type { Meaning, Term } from "./types";
 import {
   parseDictionary,
