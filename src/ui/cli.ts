@@ -20,17 +20,13 @@ import {
   forgetEntry,
   rememberEntry,
 } from "../application/application";
-import type { AppError } from "../application/application";
 import { createCliExampleGenerator } from "./ai-cli";
 import { readCliConfig } from "./cli-config";
 import { printError, printHelp, printJson } from "./print";
 import { extractOption, parseGlobalOptions } from "./option";
+import { failFileIO, failInvalidInput, type CoreError } from "../core/result";
 
-type CliError = AppError | { kind: "file-io"; reason: string };
-type CliResult<T> = Byethrow.Result<T, CliError>;
-
-const fail = (kind: "file-io" | "invalid-input", reason: string): CliResult<never> =>
-  Byethrow.fail({ kind, reason });
+type CliResult<T> = Byethrow.Result<T, CoreError>;
 
 const listDictionaryNames = async (
   dictionaryPath: string,
@@ -47,13 +43,13 @@ const listDictionaryNames = async (
       const dictionaryNameInput = fileName.replace(/\.json$/, "");
       const parsed = parseDictionaryName(dictionaryNameInput);
       if (Byethrow.isFailure(parsed)) {
-        return fail("invalid-input", "Invalid dictionary name");
+        return failInvalidInput("Invalid dictionary name");
       }
       names.push(parsed.value);
     }
     return Byethrow.succeed(names);
   } catch (error) {
-    return fail("file-io", error instanceof Error ? error.message : "Failed to read dictionaries");
+    return failFileIO(error instanceof Error ? error.message : "Failed to read dictionaries");
   }
 };
 
@@ -85,7 +81,7 @@ const loadCurrentDictionary = async (
     const content = JSON.parse(await file.text());
     const name = content?.dictionaryName ?? content?.dictionaryKey;
     if (typeof name !== "string") {
-      return fail("invalid-input", "Invalid state format");
+      return failInvalidInput("Invalid state format");
     }
     const dictionaryName = parseDictionaryName(name);
     if (Byethrow.isFailure(dictionaryName)) {
@@ -96,7 +92,7 @@ const loadCurrentDictionary = async (
     }
     return dictionaryName;
   } catch (error) {
-    return fail("file-io", error instanceof Error ? error.message : "Failed to read state");
+    return failFileIO(error instanceof Error ? error.message : "Failed to read state");
   }
 };
 
@@ -108,7 +104,7 @@ const saveCurrentDictionary = async (
     await Bun.write(path, JSON.stringify({ dictionaryName }, null, 2));
     return Byethrow.succeed(undefined);
   } catch (error) {
-    return fail("file-io", error instanceof Error ? error.message : "Failed to write state");
+    return failFileIO(error instanceof Error ? error.message : "Failed to write state");
   }
 };
 
@@ -146,8 +142,7 @@ const initWorkspace = async (
     }
     return Byethrow.succeed(undefined);
   } catch (error) {
-    return fail(
-      "file-io",
+    return failFileIO(
       error instanceof Error ? error.message : "Failed to initialize workspace",
     );
   }

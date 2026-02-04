@@ -11,8 +11,15 @@ import {
 } from "../core/entry";
 import { decrementScore, incrementScore, scoreToNumber } from "../core/score";
 import { parseDictionary, parseDictionaryName } from "../core/dictionary";
-import type { Dictionary, DictionaryName, Entry, Language, Meaning, Term } from "../core/types";
-import type { ExampleCount } from "../core/example-count";
+import type {
+  Dictionary,
+  DictionaryName,
+  Entry,
+  ExampleCount,
+  Language,
+  Meaning,
+  Term,
+} from "../core/types";
 import {
   deleteEntry,
   listEntries as listCoreEntries,

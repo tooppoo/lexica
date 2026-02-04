@@ -1,9 +1,7 @@
 import * as v from "valibot";
 import type { Result } from "./result";
 import { failInvalidInput, succeed } from "./result";
-
-type Brand<T, Name extends string> = T & { readonly __brand: Name };
-export type ExampleCount = Brand<number, "ExampleCount">;
+import type { ExampleCount } from "./types";
 
 const exampleCountSchema = v.pipe(v.number(), v.integer(), v.minValue(1));
 

@@ -6,7 +6,6 @@ import {
   parseDictionaryName,
   parseSourceLanguage,
   parseTargetLanguage,
-  toDictionaryName,
 } from "./dictionary";
 import {
   appendExample,
@@ -50,7 +49,7 @@ describe("dictionary parsing", () => {
 
   test("derives dictionary name from dictionary", () => {
     const dictionary = unwrap(parseDictionary("tech", { source: "english", target: "japanese" }));
-    expect(toDictionaryName(dictionary)).toBe(unwrap(parseDictionaryName("tech")));
+    expect(dictionary.name).toBe(unwrap(parseDictionaryName("tech")));
   });
 
   test("rejects empty source language", () => {

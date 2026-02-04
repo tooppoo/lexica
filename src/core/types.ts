@@ -6,6 +6,8 @@ export type SourceLanguage = Brand<string, "SourceLanguage">;
 
 export type TargetLanguage = Brand<string, "TargetLanguage">;
 
+export type ExampleCount = Brand<number, "ExampleCount">;
+
 export interface Language {
   source: SourceLanguage;
   target: TargetLanguage;

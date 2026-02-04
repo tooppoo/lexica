@@ -66,10 +66,3 @@ export const parseDictionary = (
     language,
   });
 };
-
-/**
- * Derives a DictionaryName from a Dictionary.
- */
-export const toDictionaryName = (dictionary: Dictionary): DictionaryName => {
-  return dictionary.name;
-};
