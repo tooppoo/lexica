@@ -1,9 +1,5 @@
 import { Result as Byethrow } from "@praha/byethrow";
-import {
-  createState as createCoreState,
-  generateExamples as generateCoreExamples,
-  type ExampleGenerator,
-} from "../core/commands";
+import { generateExamples as generateCoreExamples, type ExampleGenerator } from "../core/commands";
 import {
   forgetEntry as forgetCoreEntry,
   rememberEntry as rememberCoreEntry,
@@ -28,6 +24,7 @@ import {
   removeEntry as removeCoreEntry,
   replaceEntryInAppState,
 } from "../core/entry";
+export { createState } from "../core/state";
 import type {
   AppState,
   Dictionary,
@@ -39,11 +36,6 @@ import type {
 import { succeed, type Result } from "../core/result";
 
 export type { ExampleGenerator, TestSelection, AppState };
-
-/**
- * Creates an application state from a dictionary and entries.
- */
-export const createState = createCoreState;
 
 /**
  * Registers a new dictionary with a language (source/target).
@@ -71,17 +63,6 @@ export const clearDictionary = (
     return dictionaryName;
   }
   return clearCoreDictionary(state, dictionaryName.value);
-};
-
-/**
- * Adds a term with a meaning to the current dictionary.
- */
-export const addEntry = (
-  state: AppState,
-  termInput: string,
-  meaningInput: string,
-): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  return addEntryMeanings(state, termInput, [meaningInput]);
 };
 
 /**

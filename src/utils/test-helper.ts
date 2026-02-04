@@ -3,7 +3,7 @@ import { expect } from "bun:test";
 
 import { unwrap, type LexicaError, type Result } from "../core/result";
 import { parseDictionary } from "../core/dictionary";
-import { createState } from "../core/commands";
+import { createState } from "../core/state";
 
 export const expectErrorKind = <T>(result: Result<T>, kind: LexicaError["kind"]): void => {
   expect(Byethrow.isFailure(result)).toBe(true);
