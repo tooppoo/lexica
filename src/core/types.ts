@@ -22,6 +22,11 @@ export interface Dictionary {
   language: Language;
 }
 
+export interface AppState {
+  dictionary: Dictionary;
+  entries: Entry[];
+}
+
 export type Term = Brand<string, "Term">;
 
 export type Meaning = Brand<string, "Meaning">;

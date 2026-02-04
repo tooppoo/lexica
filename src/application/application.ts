@@ -1,110 +1,39 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import {
-  appendExample,
-  createEntry,
-  overwriteExamples,
-  overwriteScore,
-  parseExample,
-  parseMeaning,
-  parseMeanings,
-  parseTerm,
-} from "../core/entry";
-import { decrementScore, incrementScore, scoreToNumber } from "../core/score";
+  addEntryExample as addCoreEntryExample,
+  addEntryMeanings as addCoreEntryMeanings,
+  clearDictionary as clearCoreDictionary,
+  createDictionary as createCoreDictionary,
+  createState as createCoreState,
+  forgetEntry as forgetCoreEntry,
+  generateExamples as generateCoreExamples,
+  listEntries as listCoreEntries,
+  rememberEntry as rememberCoreEntry,
+  removeEntry as removeCoreEntry,
+  replaceEntry as replaceCoreEntry,
+  selectExampleTestEntry as selectCoreExampleTestEntry,
+  selectMeaningTestEntry as selectCoreMeaningTestEntry,
+  type ExampleGenerator,
+  type TestSelection,
+} from "../core/commands";
 import { parseDictionary, parseDictionaryName } from "../core/dictionary";
+import { parseExample, parseMeaning, parseMeanings, parseTerm } from "../core/entry";
 import type {
+  AppState,
   Dictionary,
   DictionaryName,
   Entry,
   ExampleCount,
-  Language,
-  Meaning,
   Term,
 } from "../core/types";
-import {
-  deleteEntry,
-  listEntries as listCoreEntries,
-  replaceEntry as replaceCoreEntry,
-  upsertEntry,
-} from "../core/vocabulary";
-import { failNotFound, succeed, type Result } from "../core/result";
+import { type Result } from "../core/result";
 
-export interface AppState {
-  dictionary: Dictionary;
-  entries: Entry[];
-}
-
-export interface ExampleGenerator {
-  (input: {
-    dictionaryName: DictionaryName;
-    language: Language;
-    term: Term;
-    meaning: Meaning;
-    count: ExampleCount;
-  }): Promise<Result<string[]>>;
-}
-
-export interface TestSelection {
-  entry: Entry;
-  example?: string;
-}
-
-interface TestSelectionStrategy {
-  isEligible: (entry: Entry) => boolean;
-  createSelection: (entry: Entry) => TestSelection | null;
-}
-
-const meaningsStrategy = (usedTerms: Set<Term>): TestSelectionStrategy => ({
-  isEligible: (entry) => !usedTerms.has(entry.term),
-  createSelection: (entry) => ({ entry }),
-});
-
-const examplesStrategy = (usedExamples: Set<string>, rng: () => number): TestSelectionStrategy => ({
-  isEligible: (entry) => (entry.examples ?? []).some((example) => !usedExamples.has(example)),
-  createSelection: (entry) => {
-    const examples = (entry.examples ?? []).filter((example) => !usedExamples.has(example));
-    if (examples.length === 0) {
-      return null;
-    }
-    const example = examples[Math.floor(rng() * examples.length)];
-    if (!example) {
-      return null;
-    }
-    return { entry, example };
-  },
-});
-
-const chooseWeightedEntry = (entries: Entry[], rng: () => number): Entry | null => {
-  if (entries.length === 0) {
-    return null;
-  }
-  const totalWeight = entries.reduce((sum, entry) => sum + 1 / (scoreToNumber(entry.score) + 1), 0);
-  const pick = rng() * totalWeight;
-  let cursor = 0;
-  let chosen = entries[0];
-  for (const entry of entries) {
-    cursor += 1 / (scoreToNumber(entry.score) + 1);
-    if (pick <= cursor) {
-      chosen = entry;
-      break;
-    }
-  }
-  return chosen ?? null;
-};
-
-const fromCore = <T>(result: Result<T>): Result<T> => {
-  if (Byethrow.isSuccess(result)) {
-    return result;
-  }
-  return Byethrow.fail(result.error);
-};
+export type { ExampleGenerator, TestSelection, AppState };
 
 /**
  * Creates an application state from a dictionary and entries.
  */
-export const createState = (dictionary: Dictionary, entries: Entry[]): AppState => ({
-  dictionary,
-  entries,
-});
+export const createState = createCoreState;
 
 /**
  * Registers a new dictionary with a language (source/target).
@@ -113,11 +42,11 @@ export const createDictionary = (
   nameInput: string,
   languageInput: { source: string; target: string },
 ): Result<{ dictionary: Dictionary }> => {
-  const parsed = fromCore(parseDictionary(nameInput, languageInput));
+  const parsed = parseDictionary(nameInput, languageInput);
   if (Byethrow.isFailure(parsed)) {
     return parsed;
   }
-  return succeed({ dictionary: parsed.value });
+  return createCoreDictionary(parsed.value.name, parsed.value.language);
 };
 
 /**
@@ -127,17 +56,11 @@ export const clearDictionary = (
   state: AppState,
   dictionaryNameInput: string,
 ): Result<{ state: AppState; dictionaryName: DictionaryName }> => {
-  const dictionaryName = fromCore(parseDictionaryName(dictionaryNameInput));
+  const dictionaryName = parseDictionaryName(dictionaryNameInput);
   if (Byethrow.isFailure(dictionaryName)) {
     return dictionaryName;
   }
-  if (state.dictionary.name !== dictionaryName.value) {
-    return failNotFound("Dictionary not found");
-  }
-  return succeed({
-    state: { ...state, entries: [] },
-    dictionaryName: state.dictionary.name,
-  });
+  return clearCoreDictionary(state, dictionaryName.value);
 };
 
 /**
@@ -159,31 +82,16 @@ export const addEntryMeanings = (
   termInput: string,
   meaningsInput: string[],
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  const term = fromCore(parseTerm(termInput));
+  const term = parseTerm(termInput);
   if (Byethrow.isFailure(term)) {
     return term;
   }
-  const meanings = fromCore(parseMeanings(meaningsInput));
+  const meanings = parseMeanings(meaningsInput);
   if (Byethrow.isFailure(meanings)) {
     return meanings;
   }
 
-  let entries = state.entries;
-  let entry: Entry | undefined;
-  for (const meaning of meanings.value) {
-    const updated = fromCore(upsertEntry(entries, term.value, meaning));
-    if (Byethrow.isFailure(updated)) {
-      return updated;
-    }
-    entries = updated.value.entries;
-    entry = updated.value.entry;
-  }
-
-  return succeed({
-    state: { ...state, entries },
-    entry: entry ?? createEntry(term.value, meanings.value),
-    dictionaryName: state.dictionary.name,
-  });
+  return addCoreEntryMeanings(state, term.value, meanings.value);
 };
 
 /**
@@ -194,28 +102,15 @@ export const addEntryExample = (
   termInput: string,
   exampleInput: string,
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  const term = fromCore(parseTerm(termInput));
+  const term = parseTerm(termInput);
   if (Byethrow.isFailure(term)) {
     return term;
   }
-  const example = fromCore(parseExample(exampleInput));
+  const example = parseExample(exampleInput);
   if (Byethrow.isFailure(example)) {
     return example;
   }
-  const currentEntry = fromCore(listCoreEntries(state.entries, term.value));
-  if (Byethrow.isFailure(currentEntry)) {
-    return currentEntry;
-  }
-  const updatedEntry = appendExample(currentEntry.value, example.value);
-  const replaced = fromCore(replaceCoreEntry(state.entries, updatedEntry));
-  if (Byethrow.isFailure(replaced)) {
-    return replaced;
-  }
-  return succeed({
-    state: { ...state, entries: replaced.value.entries },
-    entry: replaced.value.entry,
-    dictionaryName: state.dictionary.name,
-  });
+  return addCoreEntryExample(state, term.value, example.value);
 };
 
 /**
@@ -226,22 +121,14 @@ export const listEntries = (
   termInput?: string,
 ): Result<{ dictionaryName: DictionaryName; entries: Entry[] | Entry }> => {
   if (termInput === undefined) {
-    const entries = fromCore(listCoreEntries(state.entries));
-    if (Byethrow.isFailure(entries)) {
-      return entries;
-    }
-    return succeed({ dictionaryName: state.dictionary.name, entries: entries.value });
+    return listCoreEntries(state);
   }
 
-  const term = fromCore(parseTerm(termInput));
+  const term = parseTerm(termInput);
   if (Byethrow.isFailure(term)) {
     return term;
   }
-  const entries = fromCore(listCoreEntries(state.entries, term.value));
-  if (Byethrow.isFailure(entries)) {
-    return entries;
-  }
-  return succeed({ dictionaryName: state.dictionary.name, entries: entries.value });
+  return listCoreEntries(state, term.value);
 };
 
 /**
@@ -252,61 +139,21 @@ export const removeEntry = (
   termInput: string,
   meaningInput?: string,
 ): Result<{ state: AppState; dictionaryName: DictionaryName }> => {
-  const term = fromCore(parseTerm(termInput));
+  const term = parseTerm(termInput);
   if (Byethrow.isFailure(term)) {
     return term;
   }
 
   if (meaningInput === undefined) {
-    const deleted = fromCore(deleteEntry(state.entries, term.value));
-    if (Byethrow.isFailure(deleted)) {
-      return deleted;
-    }
-    return succeed({
-      state: { ...state, entries: deleted.value.entries },
-      dictionaryName: state.dictionary.name,
-    });
+    return removeCoreEntry(state, term.value);
   }
 
-  const meaning = fromCore(parseMeaning(meaningInput));
+  const meaning = parseMeaning(meaningInput);
   if (Byethrow.isFailure(meaning)) {
     return meaning;
   }
 
-  const currentEntry = fromCore(listCoreEntries(state.entries, term.value));
-  if (Byethrow.isFailure(currentEntry)) {
-    return currentEntry;
-  }
-
-  const filtered = currentEntry.value.meanings.filter((item) => item !== meaning.value);
-  if (filtered.length === currentEntry.value.meanings.length) {
-    return failNotFound("Meaning not found");
-  }
-
-  if (filtered.length === 0) {
-    const deleted = fromCore(deleteEntry(state.entries, term.value));
-    if (Byethrow.isFailure(deleted)) {
-      return deleted;
-    }
-    return succeed({
-      state: { ...state, entries: deleted.value.entries },
-      dictionaryName: state.dictionary.name,
-    });
-  }
-
-  const replaced = fromCore(
-    replaceCoreEntry(state.entries, {
-      ...currentEntry.value,
-      meanings: filtered,
-    }),
-  );
-  if (Byethrow.isFailure(replaced)) {
-    return replaced;
-  }
-  return succeed({
-    state: { ...state, entries: replaced.value.entries },
-    dictionaryName: state.dictionary.name,
-  });
+  return removeCoreEntry(state, term.value, meaning.value);
 };
 
 /**
@@ -318,28 +165,15 @@ export const replaceEntry = (
   meaningsInput: string[],
   examples?: string[],
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  const term = fromCore(parseTerm(termInput));
+  const term = parseTerm(termInput);
   if (Byethrow.isFailure(term)) {
     return term;
   }
-  const currentEntry = fromCore(listCoreEntries(state.entries, term.value));
-  if (Byethrow.isFailure(currentEntry)) {
-    return currentEntry;
-  }
-  const meanings = fromCore(parseMeanings(meaningsInput));
+  const meanings = parseMeanings(meaningsInput);
   if (Byethrow.isFailure(meanings)) {
     return meanings;
   }
-  const entry = createEntry(term.value, meanings.value, examples, currentEntry.value.score);
-  const replaced = fromCore(replaceCoreEntry(state.entries, entry));
-  if (Byethrow.isFailure(replaced)) {
-    return replaced;
-  }
-  return succeed({
-    state: { ...state, entries: replaced.value.entries },
-    entry: replaced.value.entry,
-    dictionaryName: state.dictionary.name,
-  });
+  return replaceCoreEntry(state, term.value, meanings.value, examples);
 };
 
 /**
@@ -352,59 +186,15 @@ export const generateExamples = async (
   generator: ExampleGenerator,
   count: ExampleCount,
 ): Promise<Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }>> => {
-  const term = fromCore(parseTerm(termInput));
+  const term = parseTerm(termInput);
   if (Byethrow.isFailure(term)) {
     return term;
   }
-  const meaning = fromCore(parseMeaning(meaningInput));
+  const meaning = parseMeaning(meaningInput);
   if (Byethrow.isFailure(meaning)) {
     return meaning;
   }
-
-  const currentEntry = fromCore(listCoreEntries(state.entries, term.value));
-  if (Byethrow.isFailure(currentEntry)) {
-    return currentEntry;
-  }
-
-  const generated = await generator({
-    dictionaryName: state.dictionary.name,
-    language: state.dictionary.language,
-    term: term.value,
-    meaning: meaning.value,
-    count,
-  });
-  if (Byethrow.isFailure(generated)) {
-    return generated;
-  }
-
-  const updatedEntry = overwriteExamples(currentEntry.value, generated.value);
-  const replaced = fromCore(replaceCoreEntry(state.entries, updatedEntry));
-  if (Byethrow.isFailure(replaced)) {
-    return replaced;
-  }
-  return succeed({
-    state: { ...state, entries: replaced.value.entries },
-    entry: replaced.value.entry,
-    dictionaryName: state.dictionary.name,
-  });
-};
-
-const selectTestEntry = (
-  state: AppState,
-  strategy: TestSelectionStrategy,
-  rng: () => number,
-): Result<TestSelection | null> => {
-  const entries = fromCore(listCoreEntries(state.entries));
-  if (Byethrow.isFailure(entries)) {
-    return entries;
-  }
-
-  const eligible = entries.value.filter((entry) => strategy.isEligible(entry));
-  const chosen = chooseWeightedEntry(eligible, rng);
-  if (!chosen) {
-    return succeed(null);
-  }
-  return succeed(strategy.createSelection(chosen));
+  return generateCoreExamples(state, term.value, meaning.value, generator, count);
 };
 
 /**
@@ -413,9 +203,9 @@ const selectTestEntry = (
 export const selectMeaningTestEntry = (
   state: AppState,
   usedTerms: Set<Term>,
-  rng: () => number = Math.random,
+  rng?: () => number,
 ): Result<TestSelection | null> => {
-  return selectTestEntry(state, meaningsStrategy(usedTerms), rng);
+  return selectCoreMeaningTestEntry(state, usedTerms, rng);
 };
 
 /**
@@ -424,36 +214,9 @@ export const selectMeaningTestEntry = (
 export const selectExampleTestEntry = (
   state: AppState,
   usedExamples: Set<string>,
-  rng: () => number = Math.random,
+  rng?: () => number,
 ): Result<TestSelection | null> => {
-  return selectTestEntry(state, examplesStrategy(usedExamples, rng), rng);
-};
-
-const updateTestScore = (
-  state: AppState,
-  termInput: string,
-  nextScore: (score: Entry["score"]) => Entry["score"],
-): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  const term = fromCore(parseTerm(termInput));
-  if (Byethrow.isFailure(term)) {
-    return term;
-  }
-
-  const currentEntry = fromCore(listCoreEntries(state.entries, term.value));
-  if (Byethrow.isFailure(currentEntry)) {
-    return currentEntry;
-  }
-
-  const updatedEntry = overwriteScore(currentEntry.value, nextScore(currentEntry.value.score));
-  const replaced = fromCore(replaceCoreEntry(state.entries, updatedEntry));
-  if (Byethrow.isFailure(replaced)) {
-    return replaced;
-  }
-  return succeed({
-    state: { ...state, entries: replaced.value.entries },
-    entry: replaced.value.entry,
-    dictionaryName: state.dictionary.name,
-  });
+  return selectCoreExampleTestEntry(state, usedExamples, rng);
 };
 
 /**
@@ -463,7 +226,11 @@ export const rememberEntry = (
   state: AppState,
   termInput: string,
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  return updateTestScore(state, termInput, incrementScore);
+  const term = parseTerm(termInput);
+  if (Byethrow.isFailure(term)) {
+    return term;
+  }
+  return rememberCoreEntry(state, term.value);
 };
 
 /**
@@ -473,5 +240,9 @@ export const forgetEntry = (
   state: AppState,
   termInput: string,
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  return updateTestScore(state, termInput, decrementScore);
+  const term = parseTerm(termInput);
+  if (Byethrow.isFailure(term)) {
+    return term;
+  }
+  return forgetCoreEntry(state, term.value);
 };
