@@ -1,11 +1,7 @@
 import * as v from "valibot";
 import type { Result } from "./result";
 import { failInvalidInput, succeed } from "./result";
-
-export type TestMode = "meanings" | "examples";
-
-type Brand<T, Name extends string> = T & { readonly __brand: Name };
-export type TestCount = Brand<number, "TestCount">;
+import type { TestCount, TestMode } from "./types";
 
 const testModeSchema = v.picklist(["meanings", "examples"] as const);
 const testCountSchema = v.pipe(v.number(), v.integer(), v.minValue(1));

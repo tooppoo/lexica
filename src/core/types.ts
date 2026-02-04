@@ -8,6 +8,10 @@ export type TargetLanguage = Brand<string, "TargetLanguage">;
 
 export type ExampleCount = Brand<number, "ExampleCount">;
 
+export type TestMode = "meanings" | "examples";
+
+export type TestCount = Brand<number, "TestCount">;
+
 export interface Language {
   source: SourceLanguage;
   target: TargetLanguage;

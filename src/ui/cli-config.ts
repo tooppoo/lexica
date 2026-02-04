@@ -1,8 +1,5 @@
-import { Result as Byethrow } from "@praha/byethrow";
 import * as v from "valibot";
-
-export type CliConfigError = { kind: "file-io" | "invalid-input"; reason: string };
-export type CliConfigResult<T> = Byethrow.Result<T, CliConfigError>;
+import { failFileIO, failInvalidInput, succeed, type Result } from "../core/result";
 
 export const DEFAULT_DICTIONARY_PATH = ".lexica/dictionaries";
 export const DEFAULT_STATE_PATH = ".lexica/state.json";
@@ -19,25 +16,19 @@ const configSchema = v.object({
 
 export type CliConfig = v.InferOutput<typeof configSchema>;
 
-const succeed = <T>(value: T): CliConfigResult<T> => ({ type: "Success", value });
-const fail = (kind: CliConfigError["kind"], reason: string): CliConfigResult<never> => ({
-  type: "Failure",
-  error: { kind, reason },
-});
-
 /**
  * Reads CLI configuration from a JSON file.
  */
-export const readCliConfig = async (path: string): Promise<CliConfigResult<CliConfig>> => {
+export const readCliConfig = async (path: string): Promise<Result<CliConfig>> => {
   const file = Bun.file(path);
   if (!(await file.exists())) {
-    return fail("file-io", "Config file not found");
+    return failFileIO("Config file not found");
   }
   try {
     const content = JSON.parse(await file.text());
     const parsed = v.safeParse(configSchema, content);
     if (!parsed.success) {
-      return fail("invalid-input", "Invalid config format");
+      return failInvalidInput("Invalid config format");
     }
     const args = parsed.output.ai.args ?? [];
     return succeed({
@@ -47,6 +38,6 @@ export const readCliConfig = async (path: string): Promise<CliConfigResult<CliCo
       },
     });
   } catch (error) {
-    return fail("file-io", error instanceof Error ? error.message : "Failed to read config");
+    return failFileIO(error instanceof Error ? error.message : "Failed to read config");
   }
 };

@@ -26,11 +26,7 @@ import {
   replaceEntry as replaceCoreEntry,
   upsertEntry,
 } from "../core/vocabulary";
-import { failNotFound, succeed, type CoreError } from "../core/result";
-
-export type AppError = CoreError;
-
-export type Result<T> = Byethrow.Result<T, AppError>;
+import { failNotFound, succeed, type Result } from "../core/result";
 
 export interface AppState {
   dictionary: Dictionary;

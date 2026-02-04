@@ -24,9 +24,9 @@ import { createCliExampleGenerator } from "./ai-cli";
 import { readCliConfig } from "./cli-config";
 import { printError, printHelp, printJson } from "./print";
 import { extractOption, parseGlobalOptions } from "./option";
-import { failFileIO, failInvalidInput, type CoreError } from "../core/result";
+import { failFileIO, failInvalidInput, type LexicaError } from "../core/result";
 
-type CliResult<T> = Byethrow.Result<T, CoreError>;
+type CliResult<T> = Byethrow.Result<T, LexicaError>;
 
 const listDictionaryNames = async (
   dictionaryPath: string,

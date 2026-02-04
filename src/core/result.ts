@@ -1,13 +1,13 @@
 import { Result as Byethrow } from "@praha/byethrow";
 
-export type CoreError =
+export type LexicaError =
   | { kind: "invalid-input"; reason: string }
   | { kind: "not-found"; reason: string }
   | { kind: "conflict"; reason: string }
   | { kind: "file-io"; reason: string }
   | { kind: "ai-failed"; reason: string };
 
-export type Result<T> = Byethrow.Result<T, CoreError>;
+export type Result<T> = Byethrow.Result<T, LexicaError>;
 export type ResultAsync<T> = Promise<Result<T>>;
 
 export const unwrap = <T>(result: Result<T>): T => {
@@ -60,6 +60,6 @@ export const isSuccess = <T>(result: Result<T>): result is Byethrow.Success<T> =
 /**
  * Checks whether a Result is a failure.
  */
-export const isFailure = <T>(result: Result<T>): result is Byethrow.Failure<CoreError> => {
+export const isFailure = <T>(result: Result<T>): result is Byethrow.Failure<LexicaError> => {
   return Byethrow.isFailure(result);
 };
