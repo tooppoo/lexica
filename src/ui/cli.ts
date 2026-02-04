@@ -202,7 +202,7 @@ const loadCurrentDictionary = async (
   try {
     const content = JSON.parse(await file.text());
     const name = content?.dictionaryName ?? content?.dictionaryKey;
-    if (typeof name !== "string" || name.trim().length === 0) {
+    if (typeof name !== "string") {
       return fail("invalid-input", "Invalid state format");
     }
     const dictionaryName = parseDictionaryName(name);
