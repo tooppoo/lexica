@@ -1,6 +1,13 @@
 import * as v from "valibot";
-import type { Dictionary, DictionaryName, Language, SourceLanguage, TargetLanguage } from "./types";
-import { failInvalidInput, succeed, type Result } from "./result";
+import type {
+  AppState,
+  Dictionary,
+  DictionaryName,
+  Language,
+  SourceLanguage,
+  TargetLanguage,
+} from "./types";
+import { failInvalidInput, failNotFound, succeed, type Result } from "./result";
 
 const dictionaryNameSchema = v.pipe(v.string(), v.trim(), v.minLength(1));
 const languageLabelSchema = v.pipe(v.string(), v.trim(), v.minLength(1));
@@ -64,5 +71,31 @@ export const parseDictionary = (
   return succeed({
     name: parsedName.value,
     language,
+  });
+};
+
+/**
+ * Registers a new dictionary with a language (source/target).
+ */
+export const createDictionary = (
+  name: DictionaryName,
+  language: Language,
+): Result<{ dictionary: Dictionary }> => {
+  return succeed({ dictionary: { name, language } });
+};
+
+/**
+ * Clears entries for the specified dictionary name.
+ */
+export const clearDictionary = (
+  state: AppState,
+  dictionaryName: DictionaryName,
+): Result<{ state: AppState; dictionaryName: DictionaryName }> => {
+  if (state.dictionary.name !== dictionaryName) {
+    return failNotFound("Dictionary not found");
+  }
+  return succeed({
+    state: { ...state, entries: [] },
+    dictionaryName: state.dictionary.name,
   });
 };

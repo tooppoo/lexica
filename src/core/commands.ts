@@ -38,32 +38,6 @@ export const createState = (dictionary: Dictionary, entries: Entry[]): AppState 
 });
 
 /**
- * Registers a new dictionary with a language (source/target).
- */
-export const createDictionary = (
-  name: DictionaryName,
-  language: Language,
-): Result<{ dictionary: Dictionary }> => {
-  return succeed({ dictionary: { name, language } });
-};
-
-/**
- * Clears entries for the specified dictionary name.
- */
-export const clearDictionary = (
-  state: AppState,
-  dictionaryName: DictionaryName,
-): Result<{ state: AppState; dictionaryName: DictionaryName }> => {
-  if (state.dictionary.name !== dictionaryName) {
-    return failNotFound("Dictionary not found");
-  }
-  return succeed({
-    state: { ...state, entries: [] },
-    dictionaryName: state.dictionary.name,
-  });
-};
-
-/**
  * Adds a term with a meaning to the current dictionary.
  */
 export const addEntry = (

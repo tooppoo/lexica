@@ -1,7 +1,5 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import {
-  clearDictionary as clearCoreDictionary,
-  createDictionary as createCoreDictionary,
   createState as createCoreState,
   generateExamples as generateCoreExamples,
   type ExampleGenerator,
@@ -13,7 +11,12 @@ import {
   selectMeaningTestEntry as selectCoreMeaningTestEntry,
   type TestSelection,
 } from "../core/test-mode";
-import { parseDictionary, parseDictionaryName } from "../core/dictionary";
+import {
+  clearDictionary as clearCoreDictionary,
+  createDictionary as createCoreDictionary,
+  parseDictionary,
+  parseDictionaryName,
+} from "../core/dictionary";
 import {
   addEntryExample as addCoreEntryExample,
   addEntryMeanings as addCoreEntryMeanings,
