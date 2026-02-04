@@ -1,5 +1,11 @@
 # @philomagi/lexica
 
+## 0.0.8
+
+### Patch Changes
+
+- e294003: refactor implements
+
 ## 0.0.7
 
 ### Patch Changes
