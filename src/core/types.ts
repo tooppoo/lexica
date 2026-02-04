@@ -32,7 +32,3 @@ export interface Entry {
   /** テストスコア */
   score: Score;
 }
-
-export type VocabularyData = Partial<Record<DictionaryName, Entry[]>>;
-
-export type DictionaryCatalog = Partial<Record<DictionaryName, Dictionary>>;

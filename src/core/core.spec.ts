@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Result as Byethrow } from "@praha/byethrow";
 import type { Result as CoreResult } from "./result";
-import type { Dictionary, DictionaryName, Meaning, Term, VocabularyData } from "./types";
+import type { Meaning, Term } from "./types";
 import {
   parseDictionary,
   parseDictionaryName,
@@ -151,103 +151,66 @@ describe("entry creation and example overwrite", () => {
 });
 
 describe("vocabulary operations", () => {
-  const makeDictionary = (): Dictionary =>
-    unwrap(parseDictionary("tech", { source: "english", target: "japanese" }));
-  const makeDictionaryName = (): DictionaryName => toDictionaryName(makeDictionary());
   const makeTerm = (value: string): Term => unwrap(parseTerm(value));
   const makeMeaning = (value: string): Meaning => unwrap(parseMeaning(value));
 
   test("upserts new entry", () => {
-    const dictionaryName = makeDictionaryName();
-    const result = upsertEntry({}, dictionaryName, makeTerm("object"), makeMeaning("物"));
-    const { vocabulary, entry } = unwrap(result);
+    const result = upsertEntry([], makeTerm("object"), makeMeaning("物"));
+    const { entries, entry } = unwrap(result);
     expect(entry.term).toBe(makeTerm("object"));
     expect(entry.meanings).toEqual([makeMeaning("物")]);
-    expect(vocabulary[dictionaryName]?.length).toBe(1);
+    expect(entries).toHaveLength(1);
   });
 
   test("appends meaning for existing term", () => {
-    const dictionaryName = makeDictionaryName();
-    const first = unwrap(upsertEntry({}, dictionaryName, makeTerm("object"), makeMeaning("物")));
-    const second = unwrap(
-      upsertEntry(first.vocabulary, dictionaryName, makeTerm("object"), makeMeaning("対象")),
-    );
+    const first = unwrap(upsertEntry([], makeTerm("object"), makeMeaning("物")));
+    const second = unwrap(upsertEntry(first.entries, makeTerm("object"), makeMeaning("対象")));
     expect(second.entry.meanings).toEqual([makeMeaning("物"), makeMeaning("対象")]);
   });
 
-  test("separates same term across dictionaries", () => {
-    const primary = unwrap(parseDictionary("tech", { source: "english", target: "japanese" }));
-    const primaryName = toDictionaryName(primary);
-    const vocabulary = unwrap(
-      upsertEntry({}, primaryName, makeTerm("object"), makeMeaning("物")),
-    ).vocabulary;
-
-    const secondary = unwrap(parseDictionary("travel", { source: "english", target: "japanese" }));
-    const secondaryName = toDictionaryName(secondary);
-    const result = upsertEntry(vocabulary, secondaryName, makeTerm("object"), makeMeaning("対象"));
-    const { entry } = unwrap(result);
-    expect(entry.meanings).toEqual([makeMeaning("対象")]);
-  });
-
-  test("lists all entries by dictionary", () => {
-    const dictionaryName = makeDictionaryName();
-    const first = unwrap(upsertEntry({}, dictionaryName, makeTerm("object"), makeMeaning("物")));
-    const second = unwrap(
-      upsertEntry(first.vocabulary, dictionaryName, makeTerm("value"), makeMeaning("値")),
-    );
-    const listResult = listEntries(second.vocabulary, dictionaryName);
+  test("lists all entries", () => {
+    const first = unwrap(upsertEntry([], makeTerm("object"), makeMeaning("物")));
+    const second = unwrap(upsertEntry(first.entries, makeTerm("value"), makeMeaning("値")));
+    const listResult = listEntries(second.entries);
     expect(unwrap(listResult)).toHaveLength(2);
   });
 
   test("lists single entry by term", () => {
-    const dictionaryName = makeDictionaryName();
-    const vocabulary = unwrap(
-      upsertEntry({}, dictionaryName, makeTerm("object"), makeMeaning("物")),
-    ).vocabulary;
-    const result = listEntries(vocabulary, dictionaryName, makeTerm("object"));
+    const entries = unwrap(upsertEntry([], makeTerm("object"), makeMeaning("物"))).entries;
+    const result = listEntries(entries, makeTerm("object"));
     expect(unwrap(result)).toEqual(createEntry(makeTerm("object"), unwrap(parseMeanings(["物"]))));
   });
 
   test("returns not-found when listing missing term", () => {
-    const dictionaryName = makeDictionaryName();
-    const vocabulary: VocabularyData = {};
-    const result = listEntries(vocabulary, dictionaryName, makeTerm("missing"));
+    const result = listEntries([], makeTerm("missing"));
     expectErrorKind(result, "not-found");
   });
 
   test("replaces existing entry", () => {
-    const dictionaryName = makeDictionaryName();
-    const vocabulary = unwrap(
-      upsertEntry({}, dictionaryName, makeTerm("object"), makeMeaning("物")),
-    ).vocabulary;
+    const entries = unwrap(upsertEntry([], makeTerm("object"), makeMeaning("物"))).entries;
     const replacement = createEntry(makeTerm("object"), unwrap(parseMeanings(["対象"])));
-    const result = replaceEntry(vocabulary, dictionaryName, replacement);
-    const updated = unwrap(result).vocabulary;
-    const list = unwrap(listEntries(updated, dictionaryName, makeTerm("object")));
+    const result = replaceEntry(entries, replacement);
+    const updated = unwrap(result).entries;
+    const list = unwrap(listEntries(updated, makeTerm("object")));
     expect(list).toEqual(createEntry(makeTerm("object"), unwrap(parseMeanings(["対象"]))));
   });
 
   test("returns not-found when replacing missing entry", () => {
-    const dictionaryName = makeDictionaryName();
     const replacement = createEntry(makeTerm("object"), unwrap(parseMeanings(["対象"])));
-    const result = replaceEntry({}, dictionaryName, replacement);
+    const result = replaceEntry([], replacement);
     expectErrorKind(result, "not-found");
   });
 
   test("deletes entry", () => {
-    const dictionaryName = makeDictionaryName();
-    const vocabulary = unwrap(
-      upsertEntry({}, dictionaryName, makeTerm("object"), makeMeaning("物")),
-    ).vocabulary;
-    const result = deleteEntry(vocabulary, dictionaryName, makeTerm("object"));
-    const updated = unwrap(result).vocabulary;
-    const list = listEntries(updated, dictionaryName, makeTerm("object"));
+    const entries = unwrap(upsertEntry([], makeTerm("object"), makeMeaning("物"))).entries;
+    const result = deleteEntry(entries, makeTerm("object"));
+    const updated = unwrap(result).entries;
+    const list = listEntries(updated, makeTerm("object"));
     expectErrorKind(list, "not-found");
   });
 
   test("returns not-found when deleting missing entry", () => {
-    const dictionaryName = makeDictionaryName();
-    const result = deleteEntry({}, dictionaryName, makeTerm("object"));
+    const result = deleteEntry([], makeTerm("object"));
     expectErrorKind(result, "not-found");
   });
 });

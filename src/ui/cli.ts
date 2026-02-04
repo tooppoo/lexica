@@ -2,14 +2,10 @@ import { Result as Byethrow } from "@praha/byethrow";
 import { createInterface } from "node:readline";
 import { parseArgs } from "util";
 import { parseDictionaryName } from "../core/dictionary";
-import type { DictionaryCatalog, DictionaryName, Term, VocabularyData } from "../core/types";
+import type { DictionaryName, Term } from "../core/types";
 import { defaultTestCount, parseTestCount, parseTestMode } from "../core/test-mode";
 import { defaultExampleCount, parseExampleCount } from "../core/example-count";
-import {
-  FileVocabularyStorage,
-  type StoredDictionary,
-  type VocabularyStore,
-} from "../application/storage";
+import { FileVocabularyStorage, type DictionaryStore } from "../application/storage";
 import {
   addEntryMeanings,
   addEntryExample,
@@ -22,7 +18,6 @@ import {
   replaceEntry,
   selectExampleTestEntry,
   selectMeaningTestEntry,
-  switchDictionary,
   forgetEntry,
   rememberEntry,
 } from "../application/application";
@@ -30,9 +25,9 @@ import type { AppError } from "../application/application";
 import { createCliExampleGenerator } from "./ai-cli";
 import { readCliConfig } from "./cli-config";
 
-const DEFAULT_DICTIONARY_PATH = "lexica.dictionary.json";
-const DEFAULT_STATE_PATH = "lexica.state.json";
-const DEFAULT_CONFIG_PATH = "lexica.config.json";
+const DEFAULT_DICTIONARY_PATH = ".lexica/dictionaries";
+const DEFAULT_STATE_PATH = ".lexica/state.json";
+const DEFAULT_CONFIG_PATH = ".lexica/config.json";
 
 const printJson = (value: unknown): void => {
   console.log(JSON.stringify(value, null, 2));
@@ -51,13 +46,14 @@ const printHelp = (): void => {
       "  lexica [options] <command>",
       "",
       "Options:",
-      "  -p, --path <path>          Dictionary data path (alias of --dictionary)",
-      "  --dictionary <path>        Dictionary data path",
+      "  -p, --path <path>          Dictionary data directory (alias of --dictionary)",
+      "  --dictionary <path>        Dictionary data directory",
       "  --state <path>             State file path",
       "  --config <path>            Config file path",
       "  -h, --help                 Show this help",
       "",
       "Commands:",
+      "  init",
       "  dictionary new <name> --source=<source> --target=<target>",
       "  dictionary switch <name>",
       "  dictionary clear -d <name>",
@@ -154,29 +150,66 @@ const extractOption = (args: string[], names: string[]) => {
   return { value, args: rest } as const;
 };
 
+const listDictionaryNames = async (
+  dictionaryPath: string,
+): Promise<CliResult<DictionaryName[]>> => {
+  try {
+    const directory = Bun.file(dictionaryPath);
+    if (!(await directory.exists())) {
+      return Byethrow.succeed([]);
+    }
+    const names: DictionaryName[] = [];
+    const glob = new Bun.Glob("*.json");
+    for await (const filePath of glob.scan({ cwd: dictionaryPath })) {
+      const fileName = filePath.split("/").pop() ?? filePath;
+      const dictionaryNameInput = fileName.replace(/\.json$/, "");
+      const parsed = parseDictionaryName(dictionaryNameInput);
+      if (Byethrow.isFailure(parsed)) {
+        return fail("invalid-input", "Invalid dictionary name");
+      }
+      names.push(parsed.value);
+    }
+    return Byethrow.succeed(names);
+  } catch (error) {
+    return fail("file-io", error instanceof Error ? error.message : "Failed to read dictionaries");
+  }
+};
+
+const dictionaryExists = async (
+  dictionaryPath: string,
+  dictionaryName: DictionaryName,
+): Promise<boolean> => {
+  const file = Bun.file(`${dictionaryPath}/${dictionaryName}.json`);
+  return file.exists();
+};
+
 const loadCurrentDictionary = async (
-  path: string,
-  dictionaries: DictionaryCatalog,
+  statePath: string,
+  dictionaryPath: string,
 ): Promise<CliResult<DictionaryName>> => {
-  const file = Bun.file(path);
+  const file = Bun.file(statePath);
   if (!(await file.exists())) {
-    const available = Object.keys(dictionaries);
+    const available = ensureSuccess(await listDictionaryNames(dictionaryPath));
     if (available.length === 0) {
       return Byethrow.fail({ kind: "not-found", reason: "No dictionaries registered" });
     }
-    return parseDictionaryName(available[0] ?? "");
+    const first = available[0];
+    if (!first) {
+      return Byethrow.fail({ kind: "not-found", reason: "No dictionaries registered" });
+    }
+    return Byethrow.succeed(first);
   }
   try {
     const content = JSON.parse(await file.text());
     const name = content?.dictionaryName ?? content?.dictionaryKey;
-    if (typeof name !== "string") {
+    if (typeof name !== "string" || name.trim().length === 0) {
       return fail("invalid-input", "Invalid state format");
     }
     const dictionaryName = parseDictionaryName(name);
     if (Byethrow.isFailure(dictionaryName)) {
       return dictionaryName;
     }
-    if (!dictionaries[dictionaryName.value]) {
+    if (!(await dictionaryExists(dictionaryPath, dictionaryName.value))) {
       return Byethrow.fail({ kind: "not-found", reason: "Dictionary not found" });
     }
     return dictionaryName;
@@ -206,41 +239,45 @@ const ensureSuccess = <T>(result: Byethrow.Result<T, { kind: string; reason: str
   return result.value;
 };
 
-const toDictionaryCatalog = (store: VocabularyStore): DictionaryCatalog =>
-  Object.fromEntries(
-    Object.entries(store.dictionaries).map(([name, dictionary]) => {
-      if (!dictionary) {
-        return [name, dictionary];
-      }
-      const dictionaryName = ensureSuccess(parseDictionaryName(name));
-      return [dictionaryName, { name: dictionaryName, language: dictionary.language }];
-    }),
-  );
-
-const toVocabularyData = (store: VocabularyStore): VocabularyData =>
-  Object.fromEntries(
-    Object.entries(store.dictionaries).map(([name, dictionary]) => [
-      name,
-      dictionary?.entries ?? [],
-    ]),
-  );
-
-const toVocabularyStore = (
-  dictionaries: DictionaryCatalog,
-  vocabulary: VocabularyData,
-): VocabularyStore => ({
-  dictionaries: Object.fromEntries(
-    Object.entries(dictionaries).map(([name, dictionary]) => [
-      name,
-      dictionary
-        ? {
-            language: dictionary.language,
-            entries: vocabulary[name as DictionaryName] ?? [],
-          }
-        : dictionary,
-    ]),
-  ) as Record<string, StoredDictionary | undefined>,
+const toDictionaryStore = (state: {
+  dictionary: DictionaryStore["dictionary"];
+  entries: DictionaryStore["entries"];
+}): DictionaryStore => ({
+  dictionary: state.dictionary,
+  entries: state.entries,
 });
+
+const DEFAULT_CONFIG = {
+  ai: {
+    provider: "codex",
+  },
+} as const;
+
+const initWorkspace = async (
+  dictionaryPath: string,
+  configPath: string,
+  statePath: string,
+): Promise<CliResult<void>> => {
+  try {
+    await Bun.$`mkdir -p ${dictionaryPath}`;
+    const stateDir = statePath.split("/").slice(0, -1).join("/") || ".";
+    await Bun.$`mkdir -p ${stateDir}`;
+    const configFile = Bun.file(configPath);
+    if (!(await configFile.exists())) {
+      await Bun.write(configPath, JSON.stringify(DEFAULT_CONFIG, null, 2));
+    }
+    const stateFile = Bun.file(statePath);
+    if (!(await stateFile.exists())) {
+      await Bun.write(statePath, JSON.stringify({ dictionaryName: "" }, null, 2));
+    }
+    return Byethrow.succeed(undefined);
+  } catch (error) {
+    return fail(
+      "file-io",
+      error instanceof Error ? error.message : "Failed to initialize workspace",
+    );
+  }
+};
 
 const run = async (): Promise<void> => {
   const parsed = parseGlobalOptions(process.argv.slice(2));
@@ -259,11 +296,22 @@ const run = async (): Promise<void> => {
     return;
   }
 
-  const store = ensureSuccess(await storage.load(dictionaryPath));
-  const dictionaries = toDictionaryCatalog(store);
-  const vocabulary = toVocabularyData(store);
-
   const [command, subcommand, ...rest] = args;
+  if (command === "init") {
+    const initialized = await initWorkspace(dictionaryPath, configPath, statePath);
+    if (Byethrow.isFailure(initialized)) {
+      printError(initialized.error);
+      process.exitCode = 1;
+      return;
+    }
+    printJson({
+      directory: dictionaryPath,
+      config: configPath,
+      state: statePath,
+      status: "initialized",
+    });
+    return;
+  }
 
   if (command === "dictionary" && subcommand === "new") {
     const [name, ...optionArgs] = rest;
@@ -279,19 +327,22 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const fallbackName = Object.keys(dictionaries)[0] ?? name;
-    const baseDictionary = ensureSuccess(parseDictionaryName(fallbackName));
-    const state = createState(baseDictionary, dictionaries, vocabulary);
-    const result = createDictionary(state, name, { source, target });
+    const parsedName = ensureSuccess(parseDictionaryName(name));
+    if (await dictionaryExists(dictionaryPath, parsedName)) {
+      printError({ kind: "conflict", reason: "Dictionary already exists" });
+      process.exitCode = 1;
+      return;
+    }
+    const result = createDictionary(name, { source, target });
     if (Byethrow.isFailure(result)) {
       printError(result.error);
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(
-      dictionaryPath,
-      toVocabularyStore(result.value.state.dictionaries, result.value.state.vocabulary),
-    );
+    const saved = await storage.save(dictionaryPath, {
+      dictionary: result.value.dictionary,
+      entries: [],
+    });
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -306,8 +357,9 @@ const run = async (): Promise<void> => {
     return;
   }
 
-  const currentDictionary = ensureSuccess(await loadCurrentDictionary(statePath, dictionaries));
-  const state = createState(currentDictionary, dictionaries, vocabulary);
+  const currentDictionary = ensureSuccess(await loadCurrentDictionary(statePath, dictionaryPath));
+  const currentStore = ensureSuccess(await storage.load(dictionaryPath, currentDictionary));
+  const state = createState(currentStore.dictionary, currentStore.entries);
 
   if (command === "dictionary" && subcommand === "switch") {
     const [name] = rest;
@@ -316,19 +368,24 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const result = switchDictionary(state, name);
-    if (Byethrow.isFailure(result)) {
-      printError(result.error);
+    const parsedName = parseDictionaryName(name);
+    if (Byethrow.isFailure(parsedName)) {
+      printError(parsedName.error);
       process.exitCode = 1;
       return;
     }
-    const saved = await saveCurrentDictionary(statePath, result.value.dictionaryName);
+    if (!(await dictionaryExists(dictionaryPath, parsedName.value))) {
+      printError({ kind: "not-found", reason: "Dictionary not found" });
+      process.exitCode = 1;
+      return;
+    }
+    const saved = await saveCurrentDictionary(statePath, parsedName.value);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
       return;
     }
-    printJson({ dictionary: result.value.dictionaryName, status: "switched" });
+    printJson({ dictionary: parsedName.value, status: "switched" });
     return;
   }
 
@@ -340,16 +397,20 @@ const run = async (): Promise<void> => {
       return;
     }
     const target = ensureSuccess(parseDictionaryName(extracted.value));
-    const result = clearDictionary(state, extracted.value);
+    if (!(await dictionaryExists(dictionaryPath, target))) {
+      printError({ kind: "not-found", reason: "Dictionary not found" });
+      process.exitCode = 1;
+      return;
+    }
+    const targetStore = ensureSuccess(await storage.load(dictionaryPath, target));
+    const targetState = createState(targetStore.dictionary, targetStore.entries);
+    const result = clearDictionary(targetState, extracted.value);
     if (Byethrow.isFailure(result)) {
       printError(result.error);
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(
-      dictionaryPath,
-      toVocabularyStore(result.value.state.dictionaries, result.value.state.vocabulary),
-    );
+    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -373,10 +434,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(
-      dictionaryPath,
-      toVocabularyStore(result.value.state.dictionaries, result.value.state.vocabulary),
-    );
+    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -394,23 +452,26 @@ const run = async (): Promise<void> => {
       return;
     }
     const target = ensureSuccess(parseDictionaryName(extracted.value));
+    if (!(await dictionaryExists(dictionaryPath, target))) {
+      printError({ kind: "not-found", reason: "Dictionary not found" });
+      process.exitCode = 1;
+      return;
+    }
     const [term, meaning] = extracted.args;
     if (!term) {
       printError({ kind: "invalid-input", reason: "Missing term" });
       process.exitCode = 1;
       return;
     }
-    const targetState = createState(target, state.dictionaries, state.vocabulary);
+    const targetStore = ensureSuccess(await storage.load(dictionaryPath, target));
+    const targetState = createState(targetStore.dictionary, targetStore.entries);
     const result = removeEntry(targetState, term, meaning);
     if (Byethrow.isFailure(result)) {
       printError(result.error);
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(
-      dictionaryPath,
-      toVocabularyStore(result.value.state.dictionaries, result.value.state.vocabulary),
-    );
+    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -440,23 +501,26 @@ const run = async (): Promise<void> => {
       return;
     }
     const target = ensureSuccess(parseDictionaryName(extracted.value));
+    if (!(await dictionaryExists(dictionaryPath, target))) {
+      printError({ kind: "not-found", reason: "Dictionary not found" });
+      process.exitCode = 1;
+      return;
+    }
     const [term, ...meaningsInput] = extracted.args;
     if (!term || meaningsInput.length === 0) {
       printError({ kind: "invalid-input", reason: "Missing term/meanings" });
       process.exitCode = 1;
       return;
     }
-    const targetState = createState(target, state.dictionaries, state.vocabulary);
+    const targetStore = ensureSuccess(await storage.load(dictionaryPath, target));
+    const targetState = createState(targetStore.dictionary, targetStore.entries);
     const result = replaceEntry(targetState, term, meaningsInput);
     if (Byethrow.isFailure(result)) {
       printError(result.error);
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(
-      dictionaryPath,
-      toVocabularyStore(result.value.state.dictionaries, result.value.state.vocabulary),
-    );
+    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -494,10 +558,7 @@ const run = async (): Promise<void> => {
         process.exitCode = 1;
         return;
       }
-      const saved = await storage.save(
-        dictionaryPath,
-        toVocabularyStore(result.value.state.dictionaries, result.value.state.vocabulary),
-      );
+      const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
       if (Byethrow.isFailure(saved)) {
         printError(saved.error);
         process.exitCode = 1;
@@ -544,10 +605,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(
-      dictionaryPath,
-      toVocabularyStore(result.value.state.dictionaries, result.value.state.vocabulary),
-    );
+    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -649,16 +707,13 @@ const run = async (): Promise<void> => {
     }
 
     rl.close();
-    const saved = await storage.save(
-      dictionaryPath,
-      toVocabularyStore(testState.dictionaries, testState.vocabulary),
-    );
+    const saved = await storage.save(dictionaryPath, toDictionaryStore(testState));
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
       return;
     }
-    printJson({ dictionary: testState.dictionaryName, mode, asked, status: "tested" });
+    printJson({ dictionary: testState.dictionary.name, mode, asked, status: "tested" });
     return;
   }
 

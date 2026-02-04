@@ -156,9 +156,9 @@
 
 ## Storage
 
-- 語彙データはユーザーが指定した任意パスにJSONとして保存される。
-- JSONのトップレベルは dictionaries を持つオブジェクトである。
-- dictionaries は dictionaryName をキーとし、language（source/target）と entries を保持する。
+- 語彙データは `.lexica/dictionaries` 配下に JSON として保存される。
+- 辞書ごとにファイルを分け、`.lexica/dictionaries/<dictionaryName>.json` とする。
+- 各辞書ファイルは language（source/target）と entries を保持する。
 - Gitリポジトリであることを前提としない。
 - score は語彙データ内の Entry に保存される。
 
@@ -174,6 +174,8 @@
 
 ### 辞書操作
 
+- `lexica init`
+  - `.lexica` ディレクトリと `config.json` / `state.json` / `dictionaries` を生成する。
 - `lexica dictionary new <name> --source=<source> --target=<target>`
   - 辞書を登録する。name が既存の場合は競合エラー。
   - 入力: name, language(source/target)

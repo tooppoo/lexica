@@ -18,7 +18,6 @@ import {
   replaceEntry,
   selectExampleTestEntry,
   selectMeaningTestEntry,
-  switchDictionary,
   forgetEntry,
   rememberEntry,
 } from "./application";
@@ -49,57 +48,13 @@ const createDefaultState = () => {
   const dictionary = unwrapCore(
     parseDictionary("default", { source: "english", target: "japanese" }),
   );
-  const dictionaries = { [dictionary.name]: dictionary };
-  return createState(dictionary.name, dictionaries, {});
+  return createState(dictionary, []);
 };
 
 describe("application dictionary operations", () => {
-  test("switches dictionary", () => {
-    const state = (() => {
-      const primary = unwrapCore(
-        parseDictionary("default", { source: "english", target: "japanese" }),
-      );
-      const secondary = unwrapCore(
-        parseDictionary("tech", { source: "english", target: "japanese" }),
-      );
-      return createState(
-        primary.name,
-        { [primary.name]: primary, [secondary.name]: secondary },
-        {},
-      );
-    })();
-    const switched = unwrap(switchDictionary(state, "tech"));
-    expect(switched.dictionaryName).toBe(unwrapCore(parseDictionaryName("tech")));
-  });
-
-  test("rejects unsupported dictionary", () => {
-    const state = createDefaultState();
-    const result = switchDictionary(state, " ");
-    expectErrorKind(result, "invalid-input");
-  });
-
-  test("rejects switching to missing dictionary", () => {
-    const state = createDefaultState();
-    const result = switchDictionary(state, "missing");
-    expectErrorKind(result, "not-found");
-  });
-
   test("creates dictionary with source and target", () => {
-    const state = createDefaultState();
-    const created = unwrap(
-      createDictionary(state, "travel", { source: "english", target: "japanese" }),
-    );
+    const created = unwrap(createDictionary("travel", { source: "english", target: "japanese" }));
     expect(created.dictionary.name).toBe(unwrapCore(parseDictionaryName("travel")));
-    expect(created.state.vocabulary[created.dictionary.name]).toEqual([]);
-  });
-
-  test("rejects duplicate dictionary creation", () => {
-    const state = createDefaultState();
-    const result = createDictionary(state, "default", {
-      source: "english",
-      target: "japanese",
-    });
-    expectErrorKind(result, "conflict");
   });
 
   test("clears dictionary", () => {

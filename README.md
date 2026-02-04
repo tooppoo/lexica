@@ -12,6 +12,8 @@ npm i -g @philomagi/lexica
 
 ### 辞書操作
 
+- `lexica init`
+  - `.lexica` ディレクトリと `config.json` / `state.json` / `dictionaries` を生成
 - `lexica dictionary new <name> --source=<source> --target=<target>`
   - 辞書を登録し、language（source/target）を設定する
 - `lexica dictionary switch <name>`
@@ -34,6 +36,7 @@ npm i -g @philomagi/lexica
 ### 例
 
 ```bash
+lexica init
 lexica dictionary new 英和 --source=english --target=japanese
 lexica dictionary switch tech
 lexica add dog 犬
@@ -48,3 +51,5 @@ lexica dictionary clear -d tech
 
 - すべての応答に現在選択中の辞書が表示される。
 - 破壊的操作（削除・全削除）は `-d` / `--dictionary` 指定が必須。
+- 辞書データは `.lexica/dictionaries/<name>.json` に保存される。
+- 設定ファイルは `.lexica/config.json`、状態ファイルは `.lexica/state.json`。

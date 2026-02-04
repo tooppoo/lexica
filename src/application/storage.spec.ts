@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { createEntry, parseMeanings, parseTerm } from "../core/entry";
 import { defaultScore } from "../core/score";
 import type { Result as CoreResult } from "../core/result";
-import { parseDictionary, parseDictionaryName } from "../core/dictionary";
+import { parseDictionary } from "../core/dictionary";
 import { FileVocabularyStorage, MemoryVocabularyStorage, type Result } from "./storage";
 
 const unwrap = <T>(result: Result<T>): T => {
@@ -29,45 +29,44 @@ describe("memory storage", () => {
       parseDictionary("default", { source: "english", target: "japanese" }),
     );
     const data = {
-      dictionaries: {
-        [dictionary.name]: {
-          language: dictionary.language,
-          entries: [createEntry(term, meanings, ["example"])],
-        },
-      },
+      dictionary,
+      entries: [createEntry(term, meanings, ["example"])],
     };
     unwrap(await storage.save("memory", data));
-    const loaded = unwrap(await storage.load("memory"));
+    const loaded = unwrap(await storage.load("memory", dictionary.name));
     expect(loaded).toEqual(data);
   });
 
   test("returns empty data for missing key", async () => {
     const storage = new MemoryVocabularyStorage();
-    expect(unwrap(await storage.load("missing"))).toEqual({ dictionaries: {} });
+    const dictionary = unwrapCore(
+      parseDictionary("default", { source: "english", target: "japanese" }),
+    );
+    const result = await storage.load("missing", dictionary.name);
+    expect(Byethrow.isFailure(result)).toBe(true);
   });
 
   test("defaults missing score when loading from file", async () => {
     const storage = new FileVocabularyStorage();
-    const path = `/tmp/lexica.storage.${Date.now()}.json`;
+    const dictionary = unwrapCore(
+      parseDictionary("default", { source: "english", target: "japanese" }),
+    );
+    const directory = `/tmp/lexica.storage.${Date.now()}`;
+    await Bun.$`mkdir -p ${directory}`;
     await Bun.write(
-      path,
+      `${directory}/default.json`,
       JSON.stringify({
-        dictionaries: {
-          default: {
-            language: { source: "english", target: "japanese" },
-            entries: [
-              {
-                term: "object",
-                meanings: ["物"],
-              },
-            ],
+        language: { source: "english", target: "japanese" },
+        entries: [
+          {
+            term: "object",
+            meanings: ["物"],
           },
-        },
+        ],
       }),
     );
-    const loaded = unwrap(await storage.load(path));
-    const dictionaryName = unwrapCore(parseDictionaryName("default"));
-    const entry = loaded.dictionaries[dictionaryName]?.entries?.[0];
+    const loaded = unwrap(await storage.load(directory, dictionary.name));
+    const entry = loaded.entries[0];
     expect(entry?.score).toBe(defaultScore());
   });
 });
