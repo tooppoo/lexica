@@ -3,7 +3,7 @@ import { createInterface } from "node:readline";
 import { parseDictionaryName } from "../core/dictionary";
 import type { DictionaryName, Term } from "../core/types";
 import { defaultTestCount, parseTestCount, parseTestMode } from "../core/test-mode";
-import { defaultExampleCount, parseExampleCount } from "../core/example-count";
+import { defaultExampleCount, parseExampleCount } from "../core/example";
 import { FileVocabularyStorage } from "../application/storage";
 import {
   addEntryMeanings,

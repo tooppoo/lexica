@@ -1,5 +1,5 @@
 import { Result as Byethrow } from "@praha/byethrow";
-import { generateExamples as generateCoreExamples, type ExampleGenerator } from "../core/commands";
+import { generateExamples as generateCoreExamples, type ExampleGenerator } from "../core/example";
 import {
   forgetEntry as forgetCoreEntry,
   rememberEntry as rememberCoreEntry,

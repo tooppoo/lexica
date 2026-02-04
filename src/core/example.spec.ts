@@ -1,9 +1,8 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
 import { addEntry, parseMeaning, parseTerm } from "./entry";
-import { defaultExampleCount } from "./example-count";
+import { defaultExampleCount, generateExamples } from "./example";
 import { unwrap } from "./result";
-import { generateExamples } from "./commands";
 import { createDefaultState, expectErrorKind } from "../utils/test-helper";
 
 describe("core example generation", () => {
