@@ -1,5 +1,11 @@
 # @philomagi/lexica
 
+## 0.0.7
+
+### Patch Changes
+
+- e11b01f: change file place
+
 ## 0.0.6
 
 ### Patch Changes
