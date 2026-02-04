@@ -10,13 +10,16 @@ import {
 import {
   appendExample,
   createEntry,
+  deleteEntry,
+  findEntry,
   overwriteExamples,
   parseExample,
   parseMeaning,
   parseMeanings,
   parseTerm,
+  replaceEntry,
+  upsertEntry,
 } from "./entry";
-import { deleteEntry, findEntry, replaceEntry, upsertEntry } from "./vocabulary";
 import { expectErrorKind } from "../utils/test-helper";
 
 describe("dictionary parsing", () => {

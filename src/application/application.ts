@@ -1,22 +1,30 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import {
-  addEntryExample as addCoreEntryExample,
-  addEntryMeanings as addCoreEntryMeanings,
   clearDictionary as clearCoreDictionary,
   createDictionary as createCoreDictionary,
   createState as createCoreState,
-  forgetEntry as forgetCoreEntry,
   generateExamples as generateCoreExamples,
+  type ExampleGenerator,
+} from "../core/commands";
+import {
+  forgetEntry as forgetCoreEntry,
   rememberEntry as rememberCoreEntry,
-  removeEntry as removeCoreEntry,
-  replaceEntry as replaceCoreEntry,
   selectExampleTestEntry as selectCoreExampleTestEntry,
   selectMeaningTestEntry as selectCoreMeaningTestEntry,
-  type ExampleGenerator,
   type TestSelection,
-} from "../core/commands";
+} from "../core/test-mode";
 import { parseDictionary, parseDictionaryName } from "../core/dictionary";
-import { parseExample, parseMeaning, parseMeanings, parseTerm } from "../core/entry";
+import {
+  addEntryExample as addCoreEntryExample,
+  addEntryMeanings as addCoreEntryMeanings,
+  findEntry,
+  parseExample,
+  parseMeaning,
+  parseMeanings,
+  parseTerm,
+  removeEntry as removeCoreEntry,
+  replaceEntryInAppState,
+} from "../core/entry";
 import type {
   AppState,
   Dictionary,
@@ -26,7 +34,6 @@ import type {
   Term,
 } from "../core/types";
 import { succeed, type Result } from "../core/result";
-import { findEntry } from "../core/vocabulary";
 
 export type { ExampleGenerator, TestSelection, AppState };
 
@@ -184,7 +191,7 @@ export const replaceEntry = (
   if (Byethrow.isFailure(meanings)) {
     return meanings;
   }
-  return replaceCoreEntry(state, term.value, meanings.value, examples);
+  return replaceEntryInAppState(state, term.value, meanings.value, examples);
 };
 
 /**

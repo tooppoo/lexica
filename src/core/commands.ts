@@ -6,17 +6,17 @@ import type {
   ExampleCount,
   Language,
   Meaning,
-  Score,
   Term,
 } from "./types";
-import { appendExample, createEntry, overwriteExamples, overwriteScore } from "./entry";
-import { decrementScore, incrementScore, scoreToNumber } from "./score";
 import {
+  appendExample,
+  createEntry,
   deleteEntry,
   findEntry,
-  replaceEntry as replaceCoreEntry,
+  overwriteExamples,
+  replaceEntry,
   upsertEntry,
-} from "./vocabulary";
+} from "./entry";
 import { failNotFound, succeed, type Result } from "./result";
 
 export interface ExampleGenerator {
@@ -28,54 +28,6 @@ export interface ExampleGenerator {
     count: ExampleCount;
   }): Promise<Result<string[]>>;
 }
-
-export interface TestSelection {
-  entry: Entry;
-  example?: string;
-}
-
-interface TestSelectionStrategy {
-  isEligible: (entry: Entry) => boolean;
-  createSelection: (entry: Entry) => TestSelection | null;
-}
-
-const meaningsStrategy = (usedTerms: Set<Term>): TestSelectionStrategy => ({
-  isEligible: (entry) => !usedTerms.has(entry.term),
-  createSelection: (entry) => ({ entry }),
-});
-
-const examplesStrategy = (usedExamples: Set<string>, rng: () => number): TestSelectionStrategy => ({
-  isEligible: (entry) => (entry.examples ?? []).some((example) => !usedExamples.has(example)),
-  createSelection: (entry) => {
-    const examples = (entry.examples ?? []).filter((example) => !usedExamples.has(example));
-    if (examples.length === 0) {
-      return null;
-    }
-    const example = examples[Math.floor(rng() * examples.length)];
-    if (!example) {
-      return null;
-    }
-    return { entry, example };
-  },
-});
-
-const chooseWeightedEntry = (entries: Entry[], rng: () => number): Entry | null => {
-  if (entries.length === 0) {
-    return null;
-  }
-  const totalWeight = entries.reduce((sum, entry) => sum + 1 / (scoreToNumber(entry.score) + 1), 0);
-  const pick = rng() * totalWeight;
-  let cursor = 0;
-  let chosen = entries[0];
-  for (const entry of entries) {
-    cursor += 1 / (scoreToNumber(entry.score) + 1);
-    if (pick <= cursor) {
-      chosen = entry;
-      break;
-    }
-  }
-  return chosen ?? null;
-};
 
 /**
  * Creates an application state from a dictionary and entries.
@@ -161,7 +113,7 @@ export const addEntryExample = (
     return currentEntry;
   }
   const updatedEntry = appendExample(currentEntry.value, example);
-  const replaced = replaceCoreEntry(state.entries, updatedEntry);
+  const replaced = replaceEntry(state.entries, updatedEntry);
   if (replaced.type === "Failure") {
     return replaced;
   }
@@ -212,7 +164,7 @@ export const removeEntry = (
     });
   }
 
-  const replaced = replaceCoreEntry(state.entries, {
+  const replaced = replaceEntry(state.entries, {
     ...currentEntry.value,
     meanings: filtered,
   });
@@ -228,7 +180,7 @@ export const removeEntry = (
 /**
  * Replaces an entry in the current dictionary with new meanings.
  */
-export const replaceEntry = (
+export const replaceEntryInAppState = (
   state: AppState,
   term: Term,
   meanings: Meaning[],
@@ -239,7 +191,7 @@ export const replaceEntry = (
     return currentEntry;
   }
   const entry = createEntry(term, meanings, examples, currentEntry.value.score);
-  const replaced = replaceCoreEntry(state.entries, entry);
+  const replaced = replaceEntry(state.entries, entry);
   if (replaced.type === "Failure") {
     return replaced;
   }
@@ -277,7 +229,7 @@ export const generateExamples = async (
   }
 
   const updatedEntry = overwriteExamples(currentEntry.value, generated.value);
-  const replaced = replaceCoreEntry(state.entries, updatedEntry);
+  const replaced = replaceEntry(state.entries, updatedEntry);
   if (replaced.type === "Failure") {
     return replaced;
   }
@@ -286,81 +238,4 @@ export const generateExamples = async (
     entry: replaced.value.entry,
     dictionaryName: state.dictionary.name,
   });
-};
-
-const selectTestEntry = (
-  state: AppState,
-  strategy: TestSelectionStrategy,
-  rng: () => number,
-): Result<TestSelection | null> => {
-  const eligible = state.entries.filter((entry) => strategy.isEligible(entry));
-  const chosen = chooseWeightedEntry(eligible, rng);
-  if (!chosen) {
-    return succeed(null);
-  }
-  return succeed(strategy.createSelection(chosen));
-};
-
-/**
- * Selects the next meaning test entry based on score weighting.
- */
-export const selectMeaningTestEntry = (
-  state: AppState,
-  usedTerms: Set<Term>,
-  rng: () => number = Math.random,
-): Result<TestSelection | null> => {
-  return selectTestEntry(state, meaningsStrategy(usedTerms), rng);
-};
-
-/**
- * Selects the next example test entry based on score weighting.
- */
-export const selectExampleTestEntry = (
-  state: AppState,
-  usedExamples: Set<string>,
-  rng: () => number = Math.random,
-): Result<TestSelection | null> => {
-  return selectTestEntry(state, examplesStrategy(usedExamples, rng), rng);
-};
-
-const updateTestScore = (
-  state: AppState,
-  term: Term,
-  nextScore: (score: Score) => Score,
-): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  const currentEntry = findEntry(state.entries, term);
-  if (currentEntry.type === "Failure") {
-    return currentEntry;
-  }
-
-  const updatedEntry = overwriteScore(currentEntry.value, nextScore(currentEntry.value.score));
-  const replaced = replaceCoreEntry(state.entries, updatedEntry);
-  if (replaced.type === "Failure") {
-    return replaced;
-  }
-  return succeed({
-    state: { ...state, entries: replaced.value.entries },
-    entry: replaced.value.entry,
-    dictionaryName: state.dictionary.name,
-  });
-};
-
-/**
- * Increments the score for a term when remembered.
- */
-export const rememberEntry = (
-  state: AppState,
-  term: Term,
-): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  return updateTestScore(state, term, incrementScore);
-};
-
-/**
- * Decrements the score for a term when not remembered.
- */
-export const forgetEntry = (
-  state: AppState,
-  term: Term,
-): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  return updateTestScore(state, term, decrementScore);
 };
