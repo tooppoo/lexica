@@ -19,16 +19,7 @@ import {
   parseTerm,
 } from "./entry";
 import { deleteEntry, listEntries, replaceEntry, upsertEntry } from "./vocabulary";
-
-const expectErrorKind = <T>(
-  result: Result<T>,
-  kind: "invalid-input" | "not-found" | "conflict",
-) => {
-  expect(Byethrow.isFailure(result)).toBe(true);
-  if (Byethrow.isFailure(result)) {
-    expect(result.error.kind).toBe(kind);
-  }
-};
+import { expectErrorKind } from "../utils/test-helper";
 
 describe("dictionary parsing", () => {
   test("parses supported dictionary", () => {

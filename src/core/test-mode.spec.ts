@@ -1,13 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Result as Byethrow } from "@praha/byethrow";
 import { defaultTestCount, parseTestCount, parseTestMode } from "./test-mode";
-
-const unwrap = <T>(result: Byethrow.Result<T, { kind: string }>): T => {
-  if (!Byethrow.isSuccess(result)) {
-    throw new Error("Expected success");
-  }
-  return result.value;
-};
+import { unwrap } from "./result";
 
 describe("test mode parsing", () => {
   test("parses valid test mode", () => {

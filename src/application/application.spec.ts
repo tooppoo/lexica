@@ -21,14 +21,7 @@ import {
   forgetEntry,
   rememberEntry,
 } from "./application";
-import type { AppError, Result } from "./application";
-
-const expectErrorKind = <T>(result: Result<T>, kind: AppError["kind"]): void => {
-  expect(Byethrow.isFailure(result)).toBe(true);
-  if (Byethrow.isFailure(result)) {
-    expect(result.error.kind).toBe(kind);
-  }
-};
+import { expectErrorKind } from "../utils/test-helper";
 
 const createDefaultState = () => {
   const dictionary = unwrap(parseDictionary("default", { source: "english", target: "japanese" }));
