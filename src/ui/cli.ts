@@ -142,9 +142,7 @@ const initWorkspace = async (
     }
     return Byethrow.succeed(undefined);
   } catch (error) {
-    return failFileIO(
-      error instanceof Error ? error.message : "Failed to initialize workspace",
-    );
+    return failFileIO(error instanceof Error ? error.message : "Failed to initialize workspace");
   }
 };
 
