@@ -4,6 +4,10 @@ import * as v from "valibot";
 export type CliConfigError = { kind: "file-io" | "invalid-input"; reason: string };
 export type CliConfigResult<T> = Byethrow.Result<T, CliConfigError>;
 
+export const DEFAULT_DICTIONARY_PATH = ".lexica/dictionaries";
+export const DEFAULT_STATE_PATH = ".lexica/state.json";
+export const DEFAULT_CONFIG_PATH = ".lexica/config.json";
+
 const providerSchema = v.picklist(["codex", "claude-code"] as const);
 const aiSchema = v.object({
   provider: providerSchema,

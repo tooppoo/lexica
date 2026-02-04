@@ -23,56 +23,8 @@ import {
 } from "../application/application";
 import type { AppError } from "../application/application";
 import { createCliExampleGenerator } from "./ai-cli";
-import { readCliConfig } from "./cli-config";
-
-const DEFAULT_DICTIONARY_PATH = ".lexica/dictionaries";
-const DEFAULT_STATE_PATH = ".lexica/state.json";
-const DEFAULT_CONFIG_PATH = ".lexica/config.json";
-
-const printJson = (value: unknown): void => {
-  console.log(JSON.stringify(value, null, 2));
-};
-
-const printError = (error: { kind: string; reason: string }): void => {
-  printJson({ error });
-};
-
-const printHelp = (): void => {
-  console.log(
-    [
-      "lexica - CLI reference",
-      "",
-      "Usage:",
-      "  lexica [options] <command>",
-      "",
-      "Options:",
-      "  -p, --path <path>          Dictionary data directory (alias of --dictionary)",
-      "  --dictionary <path>        Dictionary data directory",
-      "  --state <path>             State file path",
-      "  --config <path>            Config file path",
-      "  -h, --help                 Show this help",
-      "",
-      "Commands:",
-      "  init",
-      "  dictionary new <name> --source=<source> --target=<target>",
-      "  dictionary switch <name>",
-      "  dictionary clear -d <name>",
-      "  add <term> <meaning[,meaning]>",
-      "  remove <term> [meaning] -d <name>",
-      "  examples <term> generate [--count <count>] (default: 3)",
-      "  examples <term> add <example>",
-      "  test meanings [count]",
-      "  test examples [count]",
-      "  ls [term]",
-      "  replace <term> <meaning...> -d <name>",
-      "",
-      "Defaults:",
-      `  Dictionary: ${DEFAULT_DICTIONARY_PATH}`,
-      `  State: ${DEFAULT_STATE_PATH}`,
-      `  Config: ${DEFAULT_CONFIG_PATH}`,
-    ].join("\n"),
-  );
-};
+import { DEFAULT_CONFIG_PATH, DEFAULT_DICTIONARY_PATH, DEFAULT_STATE_PATH, readCliConfig } from "./cli-config";
+import { printError, printHelp, printJson } from "./print";
 
 const splitMeanings = (input: string): string[] => input.split(",");
 
@@ -239,14 +191,6 @@ const ensureSuccess = <T>(result: Byethrow.Result<T, { kind: string; reason: str
   return result.value;
 };
 
-const toDictionaryStore = (state: {
-  dictionary: DictionaryStore["dictionary"];
-  entries: DictionaryStore["entries"];
-}): DictionaryStore => ({
-  dictionary: state.dictionary,
-  entries: state.entries,
-});
-
 const DEFAULT_CONFIG = {
   ai: {
     provider: "codex",
@@ -410,7 +354,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
+    const saved = await storage.save(dictionaryPath, result.value.state);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -434,7 +378,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
+    const saved = await storage.save(dictionaryPath, result.value.state);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -471,7 +415,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
+    const saved = await storage.save(dictionaryPath, result.value.state);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -520,7 +464,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
+    const saved = await storage.save(dictionaryPath, result.value.state);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -558,7 +502,7 @@ const run = async (): Promise<void> => {
         process.exitCode = 1;
         return;
       }
-      const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
+      const saved = await storage.save(dictionaryPath, result.value.state);
       if (Byethrow.isFailure(saved)) {
         printError(saved.error);
         process.exitCode = 1;
@@ -605,7 +549,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const saved = await storage.save(dictionaryPath, toDictionaryStore(result.value.state));
+    const saved = await storage.save(dictionaryPath, result.value.state);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
@@ -707,7 +651,7 @@ const run = async (): Promise<void> => {
     }
 
     rl.close();
-    const saved = await storage.save(dictionaryPath, toDictionaryStore(testState));
+    const saved = await storage.save(dictionaryPath, testState);
     if (Byethrow.isFailure(saved)) {
       printError(saved.error);
       process.exitCode = 1;
