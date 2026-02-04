@@ -2,9 +2,9 @@ import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
 import { createEntry, parseMeanings, parseTerm } from "../core/entry";
 import { defaultScore } from "../core/score";
-import type { Result as CoreResult } from "../core/result";
+import type { Result as CoreResult, Result } from "../core/result";
 import { parseDictionary } from "../core/dictionary";
-import { FileVocabularyStorage, MemoryVocabularyStorage, type Result } from "./storage";
+import { FileVocabularyStorage, MemoryVocabularyStorage } from "./storage";
 
 const unwrap = <T>(result: Result<T>): T => {
   if (!Byethrow.isSuccess(result)) {

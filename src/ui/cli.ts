@@ -1,11 +1,10 @@
 import { Result as Byethrow } from "@praha/byethrow";
 import { createInterface } from "node:readline";
-import { parseArgs } from "util";
 import { parseDictionaryName } from "../core/dictionary";
 import type { DictionaryName, Term } from "../core/types";
 import { defaultTestCount, parseTestCount, parseTestMode } from "../core/test-mode";
 import { defaultExampleCount, parseExampleCount } from "../core/example-count";
-import { FileVocabularyStorage, type DictionaryStore } from "../application/storage";
+import { FileVocabularyStorage } from "../application/storage";
 import {
   addEntryMeanings,
   addEntryExample,
@@ -23,84 +22,15 @@ import {
 } from "../application/application";
 import type { AppError } from "../application/application";
 import { createCliExampleGenerator } from "./ai-cli";
-import { DEFAULT_CONFIG_PATH, DEFAULT_DICTIONARY_PATH, DEFAULT_STATE_PATH, readCliConfig } from "./cli-config";
+import { readCliConfig } from "./cli-config";
 import { printError, printHelp, printJson } from "./print";
-
-const splitMeanings = (input: string): string[] => input.split(",");
+import { extractOption, parseGlobalOptions } from "./option";
 
 type CliError = AppError | { kind: "file-io"; reason: string };
 type CliResult<T> = Byethrow.Result<T, CliError>;
 
 const fail = (kind: "file-io" | "invalid-input", reason: string): CliResult<never> =>
   Byethrow.fail({ kind, reason });
-
-type GlobalParseResult =
-  | { error: string }
-  | { dictionaryPath: string; statePath: string; configPath: string; args: string[] };
-
-const parseGlobalOptions = (args: string[]): GlobalParseResult => {
-  try {
-    const { values, positionals } = parseArgs({
-      args,
-      options: {
-        path: { type: "string", short: "p" },
-        dictionary: { type: "string" },
-        state: { type: "string" },
-        config: { type: "string" },
-        count: { type: "string", short: "c" },
-        help: { type: "boolean", short: "h" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (values.help) {
-      return {
-        dictionaryPath: DEFAULT_DICTIONARY_PATH,
-        statePath: DEFAULT_STATE_PATH,
-        configPath: DEFAULT_CONFIG_PATH,
-        args: ["--help"],
-      };
-    }
-    const dictionaryPath = values.dictionary ?? values.path ?? DEFAULT_DICTIONARY_PATH;
-    const statePath = values.state ?? DEFAULT_STATE_PATH;
-    const configPath = values.config ?? DEFAULT_CONFIG_PATH;
-    const passthrough = values.count ? ["--count", values.count] : [];
-    return {
-      dictionaryPath,
-      statePath,
-      configPath,
-      args: [...positionals, ...passthrough],
-    } as const;
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Invalid arguments",
-    } as const;
-  }
-};
-
-const extractOption = (args: string[], names: string[]) => {
-  const rest: string[] = [];
-  let value: string | undefined;
-  for (let i = 0; i < args.length; i += 1) {
-    const arg = args[i];
-    if (!arg) {
-      continue;
-    }
-    const match = names.find((name) => arg === name || arg.startsWith(`${name}=`));
-    if (match) {
-      const inlineValue = arg.includes("=") ? arg.slice(match.length + 1) : undefined;
-      if (inlineValue !== undefined) {
-        value = inlineValue;
-        continue;
-      }
-      value = args[i + 1];
-      i += 1;
-      continue;
-    }
-    rest.push(arg);
-  }
-  return { value, args: rest } as const;
-};
 
 const listDictionaryNames = async (
   dictionaryPath: string,
@@ -371,7 +301,7 @@ const run = async (): Promise<void> => {
       process.exitCode = 1;
       return;
     }
-    const meanings = splitMeanings(meaning);
+    const meanings = meaning.split(",");
     const result = addEntryMeanings(state, term, meanings);
     if (Byethrow.isFailure(result)) {
       printError(result.error);

@@ -19,7 +19,7 @@ import {
   replaceEntry as replaceCoreEntry,
   upsertEntry,
 } from "../core/vocabulary";
-import type { CoreError, Result as CoreResult } from "../core/result";
+import { failNotFound, succeed, type CoreError, type Result as CoreResult } from "../core/result";
 
 export type AppError = CoreError | { kind: "ai-failed"; reason: string };
 
@@ -95,12 +95,6 @@ const fromCore = <T>(result: CoreResult<T>): Result<T> => {
   return Byethrow.fail(result.error);
 };
 
-const succeed = <T>(value: T): Result<T> => ({ type: "Success", value });
-const failNotFoundApp = (reason: string): Result<never> => ({
-  type: "Failure",
-  error: { kind: "not-found", reason },
-});
-
 /**
  * Creates an application state from a dictionary and entries.
  */
@@ -135,7 +129,7 @@ export const clearDictionary = (
     return dictionaryName;
   }
   if (state.dictionary.name !== dictionaryName.value) {
-    return failNotFoundApp("Dictionary not found");
+    return failNotFound("Dictionary not found");
   }
   return succeed({
     state: { ...state, entries: [] },
@@ -283,7 +277,7 @@ export const removeEntry = (
 
   const filtered = currentEntry.value.meanings.filter((item) => item !== meaning.value);
   if (filtered.length === currentEntry.value.meanings.length) {
-    return failNotFoundApp("Meaning not found");
+    return failNotFound("Meaning not found");
   }
 
   if (filtered.length === 0) {

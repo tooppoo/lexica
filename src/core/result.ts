@@ -3,9 +3,11 @@ import { Result as Byethrow } from "@praha/byethrow";
 export type CoreError =
   | { kind: "invalid-input"; reason: string }
   | { kind: "not-found"; reason: string }
-  | { kind: "conflict"; reason: string };
+  | { kind: "conflict"; reason: string }
+  | { kind: "file-io"; reason: string };
 
 export type Result<T> = Byethrow.Result<T, CoreError>;
+export type ResultAsync<T> = Promise<Result<T>>;
 
 /**
  * Wraps a successful value into a Result.
@@ -34,6 +36,11 @@ export const failNotFound = (reason: string): Result<never> => {
 export const failConflict = (reason: string): Result<never> => {
   return { type: "Failure", error: { kind: "conflict", reason } };
 };
+
+export const failFileIO = (reason: string): Result<never> => ({
+  type: "Failure",
+  error: { kind: "file-io", reason },
+});
 
 /**
  * Checks whether a Result is successful.
