@@ -45,13 +45,7 @@ export const upsertEntry = (
 /**
  * Lists all entries for a dictionary, or returns a single entry by term.
  */
-export function listEntries(entries: Entry[]): Result<Entry[]>;
-export function listEntries(entries: Entry[], term: Term): Result<Entry>;
-export function listEntries(entries: Entry[], term?: Term): Result<Entry[] | Entry> {
-  if (term === undefined) {
-    return succeed(entries);
-  }
-
+export function findEntry(entries: Entry[], term: Term): Result<Entry> {
   const index = findEntryIndex(entries, term);
   if (index === -1) {
     return failNotFound("Entry not found");

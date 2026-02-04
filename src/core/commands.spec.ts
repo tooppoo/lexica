@@ -19,7 +19,6 @@ import {
   createState,
   forgetEntry,
   generateExamples,
-  listEntries,
   rememberEntry,
   removeEntry,
   replaceEntry,
@@ -27,6 +26,7 @@ import {
   selectMeaningTestEntry,
 } from "./commands";
 import { expectErrorKind } from "../utils/test-helper";
+import { findEntry } from "./vocabulary";
 
 const createDefaultState = () => {
   const dictionary = unwrap(parseDictionary("default", { source: "english", target: "japanese" }));
@@ -50,11 +50,8 @@ describe("core dictionary operations", () => {
       addEntry(state, unwrap(parseTerm("object")), unwrap(parseMeaning("物"))),
     ).state;
     const cleared = unwrap(clearDictionary(updated, unwrap(parseDictionaryName("default"))));
-    const list = unwrap(listEntries(cleared.state));
-    expect(Array.isArray(list.entries)).toBe(true);
-    if (Array.isArray(list.entries)) {
-      expect(list.entries).toHaveLength(0);
-    }
+    const list = cleared.state.entries;
+    expect(list).toHaveLength(0);
   });
 });
 
@@ -63,8 +60,8 @@ describe("core vocabulary operations", () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, unwrap(parseTerm("object")), unwrap(parseMeaning("物"))));
     expect(added.entry.term).toBe(unwrap(parseTerm("object")));
-    const listed = unwrap(listEntries(added.state));
-    expect(Array.isArray(listed.entries)).toBe(true);
+    const listed = added.state.entries;
+    expect(listed).toHaveLength(1);
   });
 
   test("adds multiple meanings at once", () => {
@@ -81,17 +78,15 @@ describe("core vocabulary operations", () => {
   test("lists single entry", () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, unwrap(parseTerm("object")), unwrap(parseMeaning("物"))));
-    const listed = unwrap(listEntries(added.state, unwrap(parseTerm("object"))));
-    expect(listed.entries).toEqual(
-      createEntry(unwrap(parseTerm("object")), [unwrap(parseMeaning("物"))]),
-    );
+    const entry = unwrap(findEntry(added.state.entries, unwrap(parseTerm("object"))));
+    expect(entry).toEqual(createEntry(unwrap(parseTerm("object")), [unwrap(parseMeaning("物"))]));
   });
 
   test("removes entry", () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, unwrap(parseTerm("object")), unwrap(parseMeaning("物"))));
     const removed = unwrap(removeEntry(added.state, unwrap(parseTerm("object"))));
-    const result = listEntries(removed.state, unwrap(parseTerm("object")));
+    const result = findEntry(removed.state.entries, unwrap(parseTerm("object")));
     expectErrorKind(result, "not-found");
   });
 
@@ -104,10 +99,8 @@ describe("core vocabulary operations", () => {
     const removed = unwrap(
       removeEntry(appended.state, unwrap(parseTerm("object")), unwrap(parseMeaning("物"))),
     );
-    const listed = unwrap(listEntries(removed.state, unwrap(parseTerm("object"))));
-    expect(listed.entries).toEqual(
-      createEntry(unwrap(parseTerm("object")), [unwrap(parseMeaning("対象"))]),
-    );
+    const entry = unwrap(findEntry(removed.state.entries, unwrap(parseTerm("object"))));
+    expect(entry).toEqual(createEntry(unwrap(parseTerm("object")), [unwrap(parseMeaning("対象"))]));
   });
 
   test("removing last meaning deletes entry", () => {
@@ -116,8 +109,8 @@ describe("core vocabulary operations", () => {
     const removed = unwrap(
       removeEntry(added.state, unwrap(parseTerm("object")), unwrap(parseMeaning("物"))),
     );
-    const listed = listEntries(removed.state, unwrap(parseTerm("object")));
-    expectErrorKind(listed, "not-found");
+    const entry = findEntry(removed.state.entries, unwrap(parseTerm("object")));
+    expectErrorKind(entry, "not-found");
   });
 
   test("replace entry", () => {

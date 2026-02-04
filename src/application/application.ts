@@ -7,7 +7,6 @@ import {
   createState as createCoreState,
   forgetEntry as forgetCoreEntry,
   generateExamples as generateCoreExamples,
-  listEntries as listCoreEntries,
   rememberEntry as rememberCoreEntry,
   removeEntry as removeCoreEntry,
   replaceEntry as replaceCoreEntry,
@@ -26,7 +25,8 @@ import type {
   ExampleCount,
   Term,
 } from "../core/types";
-import { type Result } from "../core/result";
+import { succeed, type Result } from "../core/result";
+import { findEntry } from "../core/vocabulary";
 
 export type { ExampleGenerator, TestSelection, AppState };
 
@@ -114,21 +114,32 @@ export const addEntryExample = (
 };
 
 /**
- * Lists entries in the current dictionary, optionally for a single term.
+ * Lists entries in the current dictionary.
  */
 export const listEntries = (
   state: AppState,
-  termInput?: string,
-): Result<{ dictionaryName: DictionaryName; entries: Entry[] | Entry }> => {
-  if (termInput === undefined) {
-    return listCoreEntries(state);
-  }
+): Result<{ dictionaryName: DictionaryName; entries: Entry[] }> => {
+  return succeed({
+    dictionaryName: state.dictionary.name,
+    entries: state.entries,
+  });
+};
 
-  const term = parseTerm(termInput);
-  if (Byethrow.isFailure(term)) {
-    return term;
-  }
-  return listCoreEntries(state, term.value);
+/**
+ * Lists a single entry in the current dictionary by term.
+ */
+export const listEntry = (
+  state: AppState,
+  termInput: string,
+): Result<{ dictionaryName: DictionaryName; entry: Entry }> => {
+  return Byethrow.pipe(
+    parseTerm(termInput),
+    Byethrow.andThen((term) => findEntry(state.entries, term)),
+    Byethrow.map((entry) => ({
+      dictionaryName: state.dictionary.name,
+      entry,
+    })),
+  );
 };
 
 /**

@@ -13,7 +13,7 @@ import { appendExample, createEntry, overwriteExamples, overwriteScore } from ".
 import { decrementScore, incrementScore, scoreToNumber } from "./score";
 import {
   deleteEntry,
-  listEntries as listCoreEntries,
+  findEntry,
   replaceEntry as replaceCoreEntry,
   upsertEntry,
 } from "./vocabulary";
@@ -156,7 +156,7 @@ export const addEntryExample = (
   term: Term,
   example: string,
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  const currentEntry = listCoreEntries(state.entries, term);
+  const currentEntry = findEntry(state.entries, term);
   if (currentEntry.type === "Failure") {
     return currentEntry;
   }
@@ -170,28 +170,6 @@ export const addEntryExample = (
     entry: replaced.value.entry,
     dictionaryName: state.dictionary.name,
   });
-};
-
-/**
- * Lists entries in the current dictionary, optionally for a single term.
- */
-export const listEntries = (
-  state: AppState,
-  term?: Term,
-): Result<{ dictionaryName: DictionaryName; entries: Entry[] | Entry }> => {
-  if (term === undefined) {
-    const entries = listCoreEntries(state.entries);
-    if (entries.type === "Failure") {
-      return entries;
-    }
-    return succeed({ dictionaryName: state.dictionary.name, entries: entries.value });
-  }
-
-  const entries = listCoreEntries(state.entries, term);
-  if (entries.type === "Failure") {
-    return entries;
-  }
-  return succeed({ dictionaryName: state.dictionary.name, entries: entries.value });
 };
 
 /**
@@ -213,7 +191,7 @@ export const removeEntry = (
     });
   }
 
-  const currentEntry = listCoreEntries(state.entries, term);
+  const currentEntry = findEntry(state.entries, term);
   if (currentEntry.type === "Failure") {
     return currentEntry;
   }
@@ -256,7 +234,7 @@ export const replaceEntry = (
   meanings: Meaning[],
   examples?: string[],
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  const currentEntry = listCoreEntries(state.entries, term);
+  const currentEntry = findEntry(state.entries, term);
   if (currentEntry.type === "Failure") {
     return currentEntry;
   }
@@ -282,7 +260,7 @@ export const generateExamples = async (
   generator: ExampleGenerator,
   count: ExampleCount,
 ): Promise<Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }>> => {
-  const currentEntry = listCoreEntries(state.entries, term);
+  const currentEntry = findEntry(state.entries, term);
   if (currentEntry.type === "Failure") {
     return currentEntry;
   }
@@ -315,12 +293,7 @@ const selectTestEntry = (
   strategy: TestSelectionStrategy,
   rng: () => number,
 ): Result<TestSelection | null> => {
-  const entries = listCoreEntries(state.entries);
-  if (entries.type === "Failure") {
-    return entries;
-  }
-
-  const eligible = entries.value.filter((entry) => strategy.isEligible(entry));
+  const eligible = state.entries.filter((entry) => strategy.isEligible(entry));
   const chosen = chooseWeightedEntry(eligible, rng);
   if (!chosen) {
     return succeed(null);
@@ -355,7 +328,7 @@ const updateTestScore = (
   term: Term,
   nextScore: (score: Score) => Score,
 ): Result<{ state: AppState; entry: Entry; dictionaryName: DictionaryName }> => {
-  const currentEntry = listCoreEntries(state.entries, term);
+  const currentEntry = findEntry(state.entries, term);
   if (currentEntry.type === "Failure") {
     return currentEntry;
   }

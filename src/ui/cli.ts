@@ -12,6 +12,7 @@ import {
   createDictionary,
   createState,
   generateExamples,
+  listEntry,
   listEntries,
   removeEntry,
   replaceEntry,
@@ -350,13 +351,13 @@ const run = async (): Promise<void> => {
 
   if (command === "ls") {
     const term = subcommand;
-    const result = listEntries(state, term);
+    const result = term ? listEntry(state, term) : listEntries(state);
     if (Byethrow.isFailure(result)) {
       printError(result.error);
       process.exitCode = 1;
       return;
     }
-    printJson({ dictionary: currentDictionary, entries: result.value.entries });
+    printJson({ dictionary: currentDictionary, entries: result.value });
     return;
   }
 
@@ -448,18 +449,13 @@ const run = async (): Promise<void> => {
       : defaultExampleCount();
     const config = ensureSuccess(await readCliConfig(configPath));
     const generator = createCliExampleGenerator(config);
-    const currentEntry = listEntries(state, term);
+    const currentEntry = listEntry(state, term);
     if (Byethrow.isFailure(currentEntry)) {
       printError(currentEntry.error);
       process.exitCode = 1;
       return;
     }
-    if (Array.isArray(currentEntry.value.entries)) {
-      printError({ kind: "invalid-input", reason: "Expected a single entry" });
-      process.exitCode = 1;
-      return;
-    }
-    const entry = currentEntry.value.entries;
+    const entry = currentEntry.value.entry;
     const meaning = entry.meanings[0];
     if (!meaning) {
       printError({ kind: "invalid-input", reason: "Entry has no meanings" });

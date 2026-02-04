@@ -16,7 +16,7 @@ import {
   parseMeanings,
   parseTerm,
 } from "./entry";
-import { deleteEntry, listEntries, replaceEntry, upsertEntry } from "./vocabulary";
+import { deleteEntry, findEntry, replaceEntry, upsertEntry } from "./vocabulary";
 import { expectErrorKind } from "../utils/test-helper";
 
 describe("dictionary parsing", () => {
@@ -150,21 +150,14 @@ describe("vocabulary operations", () => {
     expect(second.entry.meanings).toEqual([makeMeaning("物"), makeMeaning("対象")]);
   });
 
-  test("lists all entries", () => {
-    const first = unwrap(upsertEntry([], makeTerm("object"), makeMeaning("物")));
-    const second = unwrap(upsertEntry(first.entries, makeTerm("value"), makeMeaning("値")));
-    const listResult = listEntries(second.entries);
-    expect(unwrap(listResult)).toHaveLength(2);
-  });
-
   test("lists single entry by term", () => {
     const entries = unwrap(upsertEntry([], makeTerm("object"), makeMeaning("物"))).entries;
-    const result = listEntries(entries, makeTerm("object"));
+    const result = findEntry(entries, makeTerm("object"));
     expect(unwrap(result)).toEqual(createEntry(makeTerm("object"), unwrap(parseMeanings(["物"]))));
   });
 
   test("returns not-found when listing missing term", () => {
-    const result = listEntries([], makeTerm("missing"));
+    const result = findEntry([], makeTerm("missing"));
     expectErrorKind(result, "not-found");
   });
 
@@ -173,7 +166,7 @@ describe("vocabulary operations", () => {
     const replacement = createEntry(makeTerm("object"), unwrap(parseMeanings(["対象"])));
     const result = replaceEntry(entries, replacement);
     const updated = unwrap(result).entries;
-    const list = unwrap(listEntries(updated, makeTerm("object")));
+    const list = unwrap(findEntry(updated, makeTerm("object")));
     expect(list).toEqual(createEntry(makeTerm("object"), unwrap(parseMeanings(["対象"]))));
   });
 
@@ -187,7 +180,7 @@ describe("vocabulary operations", () => {
     const entries = unwrap(upsertEntry([], makeTerm("object"), makeMeaning("物"))).entries;
     const result = deleteEntry(entries, makeTerm("object"));
     const updated = unwrap(result).entries;
-    const list = listEntries(updated, makeTerm("object"));
+    const list = findEntry(updated, makeTerm("object"));
     expectErrorKind(list, "not-found");
   });
 
