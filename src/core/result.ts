@@ -4,10 +4,18 @@ export type CoreError =
   | { kind: "invalid-input"; reason: string }
   | { kind: "not-found"; reason: string }
   | { kind: "conflict"; reason: string }
-  | { kind: "file-io"; reason: string };
+  | { kind: "file-io"; reason: string }
+  | { kind: "ai-failed"; reason: string };
 
 export type Result<T> = Byethrow.Result<T, CoreError>;
 export type ResultAsync<T> = Promise<Result<T>>;
+
+export const unwrap = <T>(result: Result<T>): T => {
+  if (!Byethrow.isSuccess(result)) {
+    throw new Error(`Expected success but got ${result.error.reason}`);
+  }
+  return result.value;
+};
 
 /**
  * Wraps a successful value into a Result.

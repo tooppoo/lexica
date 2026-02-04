@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Result as Byethrow } from "@praha/byethrow";
-import type { Result as CoreResult } from "./result";
+import { unwrap, type Result } from "./result";
 import type { Meaning, Term } from "./types";
 import {
   parseDictionary,
@@ -20,15 +20,8 @@ import {
 } from "./entry";
 import { deleteEntry, listEntries, replaceEntry, upsertEntry } from "./vocabulary";
 
-const unwrap = <T>(result: CoreResult<T>): T => {
-  if (!Byethrow.isSuccess(result)) {
-    throw new Error(`Expected ok but got error: ${result.error.kind}`);
-  }
-  return result.value;
-};
-
 const expectErrorKind = <T>(
-  result: CoreResult<T>,
+  result: Result<T>,
   kind: "invalid-input" | "not-found" | "conflict",
 ) => {
   expect(Byethrow.isFailure(result)).toBe(true);

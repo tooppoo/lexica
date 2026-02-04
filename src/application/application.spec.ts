@@ -4,7 +4,7 @@ import { parseDictionary, parseDictionaryName } from "../core/dictionary";
 import { createEntry, parseMeaning, parseTerm } from "../core/entry";
 import { scoreToNumber } from "../core/score";
 import { defaultExampleCount } from "../core/example-count";
-import type { Result as CoreResult } from "../core/result";
+import { unwrap } from "../core/result";
 import {
   addEntry,
   addEntryExample,
@@ -23,20 +23,6 @@ import {
 } from "./application";
 import type { AppError, Result } from "./application";
 
-const unwrap = <T>(result: Result<T>): T => {
-  if (!Byethrow.isSuccess(result)) {
-    throw new Error(`Expected success but got ${result.error.kind}`);
-  }
-  return result.value;
-};
-
-const unwrapCore = <T>(result: CoreResult<T>): T => {
-  if (!Byethrow.isSuccess(result)) {
-    throw new Error(`Expected success but got ${result.error.kind}`);
-  }
-  return result.value;
-};
-
 const expectErrorKind = <T>(result: Result<T>, kind: AppError["kind"]): void => {
   expect(Byethrow.isFailure(result)).toBe(true);
   if (Byethrow.isFailure(result)) {
@@ -45,16 +31,14 @@ const expectErrorKind = <T>(result: Result<T>, kind: AppError["kind"]): void => 
 };
 
 const createDefaultState = () => {
-  const dictionary = unwrapCore(
-    parseDictionary("default", { source: "english", target: "japanese" }),
-  );
+  const dictionary = unwrap(parseDictionary("default", { source: "english", target: "japanese" }));
   return createState(dictionary, []);
 };
 
 describe("application dictionary operations", () => {
   test("creates dictionary with source and target", () => {
     const created = unwrap(createDictionary("travel", { source: "english", target: "japanese" }));
-    expect(created.dictionary.name).toBe(unwrapCore(parseDictionaryName("travel")));
+    expect(created.dictionary.name).toBe(unwrap(parseDictionaryName("travel")));
   });
 
   test("clears dictionary", () => {
@@ -73,7 +57,7 @@ describe("application vocabulary operations", () => {
   test("adds and lists entries", () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, "object", "物"));
-    expect(added.entry.term).toBe(unwrapCore(parseTerm("object")));
+    expect(added.entry.term).toBe(unwrap(parseTerm("object")));
     const listed = unwrap(listEntries(added.state));
     expect(Array.isArray(listed.entries)).toBe(true);
   });
@@ -82,8 +66,8 @@ describe("application vocabulary operations", () => {
     const state = createDefaultState();
     const added = unwrap(addEntryMeanings(state, "object", ["物", "対象"]));
     expect(added.entry.meanings).toEqual([
-      unwrapCore(parseMeaning("物")),
-      unwrapCore(parseMeaning("対象")),
+      unwrap(parseMeaning("物")),
+      unwrap(parseMeaning("対象")),
     ]);
   });
 
@@ -92,7 +76,7 @@ describe("application vocabulary operations", () => {
     const added = unwrap(addEntry(state, "object", "物"));
     const listed = unwrap(listEntries(added.state, "object"));
     expect(listed.entries).toEqual(
-      createEntry(unwrapCore(parseTerm("object")), [unwrapCore(parseMeaning("物"))]),
+      createEntry(unwrap(parseTerm("object")), [unwrap(parseMeaning("物"))]),
     );
   });
 
@@ -111,7 +95,7 @@ describe("application vocabulary operations", () => {
     const removed = unwrap(removeEntry(appended.state, "object", "物"));
     const listed = unwrap(listEntries(removed.state, "object"));
     expect(listed.entries).toEqual(
-      createEntry(unwrapCore(parseTerm("object")), [unwrapCore(parseMeaning("対象"))]),
+      createEntry(unwrap(parseTerm("object")), [unwrap(parseMeaning("対象"))]),
     );
   });
 
@@ -127,7 +111,7 @@ describe("application vocabulary operations", () => {
     const state = createDefaultState();
     const added = unwrap(addEntry(state, "object", "物"));
     const replaced = unwrap(replaceEntry(added.state, "object", ["対象"]));
-    expect(replaced.entry.meanings).toEqual([unwrapCore(parseMeaning("対象"))]);
+    expect(replaced.entry.meanings).toEqual([unwrap(parseMeaning("対象"))]);
   });
 
   test("adds manual example", () => {
@@ -188,9 +172,9 @@ describe("application test operations", () => {
     const state = createDefaultState();
     const first = unwrap(addEntry(state, "object", "物")).state;
     const second = unwrap(addEntry(first, "value", "値")).state;
-    const usedTerms = new Set([unwrapCore(parseTerm("object"))]);
+    const usedTerms = new Set([unwrap(parseTerm("object"))]);
     const selection = unwrap(selectMeaningTestEntry(second, usedTerms, () => 0));
-    expect(selection?.entry.term).toBe(unwrapCore(parseTerm("value")));
+    expect(selection?.entry.term).toBe(unwrap(parseTerm("value")));
   });
 
   test("selects examples without repeating examples", () => {

@@ -2,30 +2,16 @@ import { Result as Byethrow } from "@praha/byethrow";
 import { describe, expect, test } from "bun:test";
 import { createEntry, parseMeanings, parseTerm } from "../core/entry";
 import { defaultScore } from "../core/score";
-import type { Result as CoreResult, Result } from "../core/result";
+import { unwrap } from "../core/result";
 import { parseDictionary } from "../core/dictionary";
 import { FileVocabularyStorage, MemoryVocabularyStorage } from "./storage";
-
-const unwrap = <T>(result: Result<T>): T => {
-  if (!Byethrow.isSuccess(result)) {
-    throw new Error(`Expected success but got ${result.error.reason}`);
-  }
-  return result.value;
-};
-
-const unwrapCore = <T>(result: CoreResult<T>): T => {
-  if (!Byethrow.isSuccess(result)) {
-    throw new Error(`Expected success but got ${result.error.kind}`);
-  }
-  return result.value;
-};
 
 describe("memory storage", () => {
   test("saves and loads vocabulary data", async () => {
     const storage = new MemoryVocabularyStorage();
-    const term = unwrapCore(parseTerm("object"));
-    const meanings = unwrapCore(parseMeanings(["物"]));
-    const dictionary = unwrapCore(
+    const term = unwrap(parseTerm("object"));
+    const meanings = unwrap(parseMeanings(["物"]));
+    const dictionary = unwrap(
       parseDictionary("default", { source: "english", target: "japanese" }),
     );
     const data = {
@@ -39,7 +25,7 @@ describe("memory storage", () => {
 
   test("returns empty data for missing key", async () => {
     const storage = new MemoryVocabularyStorage();
-    const dictionary = unwrapCore(
+    const dictionary = unwrap(
       parseDictionary("default", { source: "english", target: "japanese" }),
     );
     const result = await storage.load("missing", dictionary.name);
@@ -48,7 +34,7 @@ describe("memory storage", () => {
 
   test("defaults missing score when loading from file", async () => {
     const storage = new FileVocabularyStorage();
-    const dictionary = unwrapCore(
+    const dictionary = unwrap(
       parseDictionary("default", { source: "english", target: "japanese" }),
     );
     const directory = `/tmp/lexica.storage.${Date.now()}`;

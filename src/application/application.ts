@@ -19,9 +19,9 @@ import {
   replaceEntry as replaceCoreEntry,
   upsertEntry,
 } from "../core/vocabulary";
-import { failNotFound, succeed, type CoreError, type Result as CoreResult } from "../core/result";
+import { failNotFound, succeed, type CoreError } from "../core/result";
 
-export type AppError = CoreError | { kind: "ai-failed"; reason: string };
+export type AppError = CoreError;
 
 export type Result<T> = Byethrow.Result<T, AppError>;
 
@@ -88,7 +88,7 @@ const chooseWeightedEntry = (entries: Entry[], rng: () => number): Entry | null 
   return chosen ?? null;
 };
 
-const fromCore = <T>(result: CoreResult<T>): Result<T> => {
+const fromCore = <T>(result: Result<T>): Result<T> => {
   if (Byethrow.isSuccess(result)) {
     return result;
   }
