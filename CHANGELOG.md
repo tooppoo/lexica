@@ -1,5 +1,11 @@
 # @philomagi/lexica
 
+## 0.0.9
+
+### Patch Changes
+
+- 54c3fea: add list commands
+
 ## 0.0.8
 
 ### Patch Changes
