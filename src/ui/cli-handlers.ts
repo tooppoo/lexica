@@ -10,6 +10,8 @@ import {
   createState,
   generateExamples,
   listEntry,
+  listEntryExamples,
+  listEntryMeanings,
   listEntries,
   removeEntry,
   replaceEntry,
@@ -61,6 +63,10 @@ export const handleCommand = async (
       return handleRemove(context, command);
     case "list":
       return handleList(context, command);
+    case "list.meanings":
+      return handleListMeanings(context, command);
+    case "list.examples":
+      return handleListExamples(context, command);
     case "replace":
       return handleReplace(context, command);
     case "examples.add":
@@ -296,6 +302,56 @@ export const handleList = async (
   return succeed({
     kind: "json",
     payload: { dictionary: loaded.value.currentDictionary, entries: result.value },
+  });
+};
+
+/**
+ * Lists meanings for a specific entry in the current dictionary.
+ */
+export const handleListMeanings = async (
+  context: CliContext,
+  command: { kind: "list.meanings"; term: string },
+): Promise<Result<HandlerOutput>> => {
+  const loaded = await loadCurrentState(context);
+  if (loaded.type === "Failure") {
+    return loaded;
+  }
+  const result = listEntryMeanings(loaded.value.state, command.term);
+  if (result.type === "Failure") {
+    return result;
+  }
+  return succeed({
+    kind: "json",
+    payload: {
+      dictionary: loaded.value.currentDictionary,
+      term: command.term,
+      meanings: result.value.meanings,
+    },
+  });
+};
+
+/**
+ * Lists examples for a specific entry in the current dictionary.
+ */
+export const handleListExamples = async (
+  context: CliContext,
+  command: { kind: "list.examples"; term: string },
+): Promise<Result<HandlerOutput>> => {
+  const loaded = await loadCurrentState(context);
+  if (loaded.type === "Failure") {
+    return loaded;
+  }
+  const result = listEntryExamples(loaded.value.state, command.term);
+  if (result.type === "Failure") {
+    return result;
+  }
+  return succeed({
+    kind: "json",
+    payload: {
+      dictionary: loaded.value.currentDictionary,
+      term: command.term,
+      examples: result.value.examples,
+    },
   });
 };
 

@@ -10,6 +10,8 @@ import {
   generateExamples,
   listEntries,
   listEntry,
+  listEntryExamples,
+  listEntryMeanings,
   rememberEntry,
   removeEntry,
   replaceEntry,
@@ -109,6 +111,28 @@ describe("application entry operations", () => {
     expect(listed.entry.term).toBe(unwrap(parseTerm("object")));
   });
 
+  test("lists entry meanings", () => {
+    const state = createDefaultState();
+    const added = unwrap(addEntryMeanings(state, "object", ["物", "対象"]));
+    const listed = unwrap(listEntryMeanings(added.state, "object"));
+    expect(listed.meanings).toEqual(unwrap(parseMeanings(["物", "対象"])));
+  });
+
+  test("lists entry examples", () => {
+    const state = createDefaultState();
+    const added = unwrap(addEntryMeanings(state, "object", ["物"]));
+    const replaced = unwrap(replaceEntry(added.state, "object", ["物"], ["ex1", "ex2"]));
+    const listed = unwrap(listEntryExamples(replaced.state, "object"));
+    expect(listed.examples).toEqual(["ex1", "ex2"]);
+  });
+
+  test("returns empty examples when entry has none", () => {
+    const state = createDefaultState();
+    const added = unwrap(addEntryMeanings(state, "object", ["物"]));
+    const listed = unwrap(listEntryExamples(added.state, "object"));
+    expect(listed.examples).toEqual([]);
+  });
+
   test("rejects invalid term when listing entry", () => {
     const result = listEntry(createDefaultState(), "");
     expectErrorKind(result, "invalid-input");
@@ -116,6 +140,11 @@ describe("application entry operations", () => {
 
   test("returns not-found when listing missing entry", () => {
     const result = listEntry(createDefaultState(), "missing");
+    expectErrorKind(result, "not-found");
+  });
+
+  test("returns not-found when listing meanings for missing entry", () => {
+    const result = listEntryMeanings(createDefaultState(), "missing");
     expectErrorKind(result, "not-found");
   });
 

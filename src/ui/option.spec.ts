@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  DEFAULT_CONFIG_PATH,
-  DEFAULT_DICTIONARY_PATH,
-  DEFAULT_STATE_PATH,
-} from "./cli-config";
+import { DEFAULT_CONFIG_PATH, DEFAULT_DICTIONARY_PATH, DEFAULT_STATE_PATH } from "./cli-config";
 import { extractOption, parseGlobalOptions } from "./option";
 
 describe("parseGlobalOptions", () => {

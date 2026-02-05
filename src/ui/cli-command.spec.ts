@@ -60,6 +60,21 @@ describe("cli command parser", () => {
     expect(command).toEqual({ kind: "list", term: "term" });
   });
 
+  test("parses list meanings command", () => {
+    const command = unwrap(parseCliCommand(["ls", "term", "meanings"]));
+    expect(command).toEqual({ kind: "list.meanings", term: "term" });
+  });
+
+  test("parses list examples command", () => {
+    const command = unwrap(parseCliCommand(["ls", "term", "examples"]));
+    expect(command).toEqual({ kind: "list.examples", term: "term" });
+  });
+
+  test("rejects list with unknown view", () => {
+    const result = parseCliCommand(["ls", "term", "unknown"]);
+    expectErrorKind(result, "invalid-input");
+  });
+
   test("parses replace command", () => {
     const command = unwrap(parseCliCommand(["replace", "term", "meaning", "-d", "default"]));
     expect(command).toEqual({

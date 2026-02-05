@@ -8,6 +8,8 @@ import {
   handleDictionaryNew,
   handleExamplesGenerate,
   handleInit,
+  handleListExamples,
+  handleListMeanings,
   handleReplace,
 } from "./cli-handlers";
 import type { CliContext, CliIO } from "./cli-context";
@@ -173,6 +175,49 @@ describe("cli handlers", () => {
     if (stored.type === "Success") {
       const updated = stored.value.entries[0];
       expect(updated?.meanings).toEqual(unwrap(parseMeanings(["対象"])));
+    }
+  });
+
+  test("handleListMeanings returns meanings for entry", async () => {
+    const { context, files } = createMemoryContext();
+    const dictionary = await seedDefaultDictionary(context, files);
+    const entry = createEntry(
+      unwrap(parseTerm("object")),
+      unwrap(parseMeanings(["物", "対象"])),
+      undefined,
+    );
+    await context.services.storage.save(dictionaryPath, { dictionary, entries: [entry] });
+
+    const result = await handleListMeanings(context, { kind: "list.meanings", term: "object" });
+
+    expect(result.type).toBe("Success");
+    if (result.type === "Success" && result.value.kind === "json") {
+      expect(result.value.payload).toEqual({
+        dictionary: "default",
+        term: "object",
+        meanings: unwrap(parseMeanings(["物", "対象"])),
+      });
+    }
+  });
+
+  test("handleListExamples returns examples for entry", async () => {
+    const { context, files } = createMemoryContext();
+    const dictionary = await seedDefaultDictionary(context, files);
+    const entry = createEntry(unwrap(parseTerm("object")), unwrap(parseMeanings(["物"])), [
+      "ex1",
+      "ex2",
+    ]);
+    await context.services.storage.save(dictionaryPath, { dictionary, entries: [entry] });
+
+    const result = await handleListExamples(context, { kind: "list.examples", term: "object" });
+
+    expect(result.type).toBe("Success");
+    if (result.type === "Success" && result.value.kind === "json") {
+      expect(result.value.payload).toEqual({
+        dictionary: "default",
+        term: "object",
+        examples: ["ex1", "ex2"],
+      });
     }
   });
 });

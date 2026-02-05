@@ -86,13 +86,13 @@
 
 ## 5) 登録内容のチェック
 
-- 目的: 登録済みの単語・例文を参照し確認できる。
-- 入力: dictionary, term（任意）
-- 出力: Entry または Entry の集合
+- 目的: 登録済みの単語・意味・例文を参照し確認できる。
+- 入力: dictionary, term（任意）, view（任意: terms/meanings/examples）
+- 出力: Entry または Entry の集合、あるいは meaning[] / example[] の一覧
 - 副作用: なし
-- エラー: 入力不正、参照不能、ファイルI/O
-- 例: dictionary=tech の全件確認
-- Covers: FR-004, NFR-001
+- エラー: 入力不正、参照不能（未登録単語は NotFound とする）、ファイルI/O
+- 例: dictionary=tech, term="object", view=meanings
+- Covers: FR-004, FR-026, FR-027, FR-028, NFR-001
 
 ## 6) 削除・上書き
 
@@ -143,6 +143,8 @@
 
 - UpsertEntry: (dictionary, term, meaning) を受け取り、Entry を返す。
 - ListEntries: (dictionary, term?) を受け取り、Entry または Entry[] を返す。
+- ListMeanings: (dictionary, term) を受け取り、meaning[] を返す。
+- ListExamples: (dictionary, term) を受け取り、example[] を返す。
 - GenerateExamples: (dictionary, term, meaning) を受け取り、Entry を返す。
 - AddExample: (dictionary, term, example) を受け取り、Entry を返す。
 - ReplaceEntry: (dictionary, term, entry) を受け取り、成功結果を返す。
@@ -211,6 +213,16 @@
   - 現在の辞書の単語一覧、または指定単語の意味一覧を表示する。
   - 入力: term（任意）
   - 出力: Entry または Entry[]（表示対象）
+- `lexica ls <term> meanings`
+  - 指定単語の意味一覧を表示する。
+  - 未登録単語の場合は NotFound エラーとする。
+  - 入力: term
+  - 出力: meaning[]
+- `lexica ls <term> examples`
+  - 指定単語の例文一覧を表示する。
+  - 未登録単語の場合は NotFound エラーとする。
+  - 入力: term
+  - 出力: example[]
 
 ### テスト操作
 
@@ -227,6 +239,7 @@
 
 - 入力不正: 必須項目欠落、空文字、辞書不整合、count の不正など。
 - 参照不能: 指定 Entry が存在しない。
+- NotFound: 参照不能のうち、単語が未登録の場合である。
 - ファイルI/O: 読み書き失敗、権限不足、パス不正。
 - AI連携失敗: AIサービス呼び出し失敗、応答不正。
 - 競合: 既存辞書名の重複。
@@ -274,6 +287,9 @@
 - DR-003 -> データモデル
 - DR-004 -> 機能仕様 3)
 - FR-025 -> 機能仕様 4)
+- FR-026 -> 機能仕様 5)
+- FR-027 -> 機能仕様 5)
+- FR-028 -> 機能仕様 5)/エラー仕様
 - DR-005 -> データモデル/制約
 - DR-006 -> 機能仕様 7)/インタフェース/Storage
 - DR-007 -> データモデル/制約

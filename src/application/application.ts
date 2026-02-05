@@ -31,6 +31,7 @@ import type {
   DictionaryName,
   Entry,
   ExampleCount,
+  Meaning,
   Term,
 } from "../core/types";
 import { succeed, type Result } from "../core/result";
@@ -129,6 +130,40 @@ export const listEntry = (
     Byethrow.map((entry) => ({
       dictionaryName: state.dictionary.name,
       entry,
+    })),
+  );
+};
+
+/**
+ * Lists meanings for a single entry in the current dictionary by term.
+ */
+export const listEntryMeanings = (
+  state: AppState,
+  termInput: string,
+): Result<{ dictionaryName: DictionaryName; meanings: Meaning[] }> => {
+  return Byethrow.pipe(
+    parseTerm(termInput),
+    Byethrow.andThen((term) => findEntry(state.entries, term)),
+    Byethrow.map((entry) => ({
+      dictionaryName: state.dictionary.name,
+      meanings: entry.meanings,
+    })),
+  );
+};
+
+/**
+ * Lists examples for a single entry in the current dictionary by term.
+ */
+export const listEntryExamples = (
+  state: AppState,
+  termInput: string,
+): Result<{ dictionaryName: DictionaryName; examples: string[] }> => {
+  return Byethrow.pipe(
+    parseTerm(termInput),
+    Byethrow.andThen((term) => findEntry(state.entries, term)),
+    Byethrow.map((entry) => ({
+      dictionaryName: state.dictionary.name,
+      examples: entry.examples ?? [],
     })),
   );
 };

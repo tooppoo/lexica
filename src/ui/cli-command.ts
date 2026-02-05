@@ -10,6 +10,8 @@ export type Command =
   | { kind: "add"; term: string; meanings: string[] }
   | { kind: "remove"; dictionary: string; term: string; meaning?: string }
   | { kind: "list"; term?: string }
+  | { kind: "list.meanings"; term: string }
+  | { kind: "list.examples"; term: string }
   | { kind: "replace"; dictionary: string; term: string; meanings: string[] }
   | { kind: "examples.add"; term: string; example: string }
   | { kind: "examples.generate"; term: string; countInput?: string }
@@ -83,7 +85,21 @@ export const parseCliCommand = (args: string[]): Result<Command> => {
   }
 
   if (command === "ls") {
-    return succeed({ kind: "list", term: subcommand });
+    const term = subcommand;
+    const view = rest[0];
+    if (!term) {
+      return succeed({ kind: "list" });
+    }
+    if (!view) {
+      return succeed({ kind: "list", term });
+    }
+    if (view === "meanings") {
+      return succeed({ kind: "list.meanings", term });
+    }
+    if (view === "examples") {
+      return succeed({ kind: "list.examples", term });
+    }
+    return failInvalidInput("Unknown list view");
   }
 
   if (command === "replace") {

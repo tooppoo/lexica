@@ -35,6 +35,8 @@ export const printHelp = (): void => {
       "  test meanings [count]",
       "  test examples [count]",
       "  ls [term]",
+      "  ls <term> meanings",
+      "  ls <term> examples",
       "  replace <term> <meaning...> -d <name>",
       "",
       "Defaults:",
